@@ -1,0 +1,105 @@
+= Rancher
+
+This configuration creates an RKE2 cluster running on SUSE Linux Micro
+instances, installs Rancher into the RKE2 cluster, configures the Oxide Rancher
+node driver, and provisions a Kubernetes cluster on Oxide using the Rancher
+node driver.
+
+== Usage
+
+The configuration is split across the following subdirectories, meant to be run
+in the following order.
+
+. link:./image[`image`]: Builds the SUSE Linux Micro image used for RKE2 and Kubernetes.
+. link:./rke2[`rke2`]: Creates an RKE2 cluster running on SUSE Linux Micro instances.
+. link:./rancher[`rancher`]: Installs Rancher into the RKE2 cluster.
+. link:./nodedriver[`nodedriver`]: Configures the Oxide Rancher node driver within Rancher.
+. link:./k8s[`k8s`]: Provisions a Kubernetes cluster on Oxide using the Rancher node driver.
+. link:./longhorn[`longhorn`]: Installs Longhorn on the Kubernetes cluster and runs an `fio` benchmark.
+
+=== Image
+
+Follow the instructions in link:./image[`image`]. This builds the SUSE Linux
+Micro image that's needed for subsequent steps. If you already have a compatible
+SUSE Linux Micro image with iSCSI packages installed, you can skip this step and
+use that image instead.
+
+Inputs:
+
+* Oxide Authentication
+
+Outputs:
+
+* SUSE Linux Micro Image ID
+
+=== RKE2
+
+Follow the instructions in link:./rke2[`rke2`]. This creates the RKE2 cluster
+running on SUSE Linux Micro instances on Oxide.
+
+Inputs:
+
+* SUSE Linux Micro Image ID
+* Oxide Authentication
+
+Outputs:
+
+* RKE2 kubeconfig
+
+=== Rancher
+
+Follow the instructions in link:./rancher[`rancher`]. This installs Rancher
+on the RKE2 cluster.
+
+Inputs:
+
+* RKE2 kubeconfig
+
+Outputs:
+
+* Rancher Authentication
+
+=== Node Driver
+
+Follow the instructions in link:./nodedriver[`nodedriver`]. This configures the
+Oxide Rancher node driver within Rancher.
+
+Inputs:
+
+* RKE2 kubeconfig
+* Rancher Authentication
+* Oxide Authentication
+
+Outputs:
+
+* Node Driver Cloud Credential ID
+
+=== Kubernetes
+
+Follow the instructions in link:./k8s[`k8s`]. This launches a Kubernetes cluster
+on Oxide using the Oxide Rancher node driver.
+
+Inputs:
+
+* RKE2 kubeconfig
+* Rancher Authentication
+* Node Driver Cloud Credential ID
+
+Outputs:
+
+* Oxide kubeconfig
+
+=== Longhorn
+
+Follow the instructions in link:./longhorn[`longhorn`]. This installs Longhorn
+on the Kubernetes cluster and runs an `fio` benchmark against a 5 GiB Longhorn
+volume.
+
+Inputs:
+
+* Oxide kubeconfig
+
+Outputs:
+
+* Longhorn installation
+* `fio` benchmark Job

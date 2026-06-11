@@ -1,0 +1,61 @@
+#cloud-config
+write_files:
+  - path: /etc/rancher/rke2/config.yaml
+    permissions: "0600"
+    owner: root:root
+    content: |
+      token: ${rke2_token}
+%{ if is_init_node ~}
+      cluster-init: true
+%{ else ~}
+      server: https://${init_node_ip}:9345
+%{ endif ~}
+      write-kubeconfig-mode: "0644"
+      tls-san:
+%{ for tls_san in tls_sans ~}
+        - ${tls_san}
+%{ endfor ~}
+
+  - path: /opt/bootstrap/install-rke2.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+%{ if scc_regcode != "" ~}
+      if ! transactional-update --continue --non-interactive register --status-text 2>/dev/null | grep -qi registered; then
+        transactional-update --continue --non-interactive register -r "${scc_regcode}" -e "${scc_email}" || true
+      fi
+%{ endif ~}
+
+%{ if !is_init_node ~}
+      # Wait for the cluster-init server's supervisor before joining.
+      echo "waiting for https://${init_node_ip}:9345 ..."
+      for i in $(seq 1 90); do
+        if curl -sk --max-time 5 "https://${init_node_ip}:9345/ping" >/dev/null 2>&1 \
+           || nc -z -w 5 ${init_node_ip} 9345 2>/dev/null; then
+          echo "supervisor is up"; break
+        fi
+        sleep 10
+      done
+%{ endif ~}
+
+      curl -sfL https://get.rke2.io | \
+        INSTALL_RKE2_TYPE=server \
+%{ if rke2_version != "" ~}
+        INSTALL_RKE2_VERSION="${rke2_version}" \
+%{ else ~}
+        INSTALL_RKE2_CHANNEL="${rke2_channel}" \
+%{ endif ~}
+        sh -
+      systemctl enable --now rke2-server.service
+
+      # Surface kubectl + kubeconfig for the operator.
+      cat >/etc/profile.d/rke2.sh <<'EOF'
+      export PATH=$PATH:/var/lib/rancher/rke2/bin:/opt/rke2/bin
+      export KUBECONFIG=/etc/rancher/rke2/rke2.yaml
+      EOF
+
+runcmd:
+  - [ /bin/bash, -c, "/opt/bootstrap/install-rke2.sh > /var/log/rke2-bootstrap.log 2>&1 || echo BOOTSTRAP_FAILED >> /var/log/rke2-bootstrap.log" ]

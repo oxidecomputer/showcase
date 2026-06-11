@@ -1,0 +1,65 @@
+= SUSE Linux Micro Packer Configuration
+
+This Packer configuration builds a SUSE Linux Micro image with `open-iscsi`
+baked in, so downstream RKE2 nodes can run Longhorn.
+
+== Requirements
+
+* link:https://developer.hashicorp.com/packer[`packer`]
+* SUSE Customer Center (SCC) registration code and email address entitled to
+SUSE Linux Micro.
+* Oxide API credentials for your silo.
+
+== Usage
+
+. Export your Oxide API credentials for your silo.
++
+[source,console]
+----
+export OXIDE_HOST='https://oxide.sys.example.com'
+export OXIDE_TOKEN='oxide-token-abc123'
+----
+
+. Download the `SL-Micro.x86_64-6.2-Base-GM.raw.xz` SUSE Linux Micro image from
+https://www.suse.com/download/sle-micro/.
+
+. Unarchive the SUSE Linux Micro image.
++
+[source,console]
+----
+xz -d SL-Micro.x86_64-6.2-Base-GM.raw.xz
+----
+
+. Upload the SUSE Linux Micro image to your Oxide project. See
+link:https://docs.oxide.computer/guides/creating-and-sharing-images[Images] for
+information on how to do so.
+
+. Copy the example variables file and replace the values with your own.
++
+[source,console]
+----
+cp secrets.pkrvars.hcl.example secrets.pkrvars.hcl
+----
+
+. Initialize the Packer configuration.
++
+[source,console]
+----
+packer init .
+----
+
+. Build the image.
++
+[source,console]
+----
+packer build -var-file=secrets.pkrvars.hcl .
+----
+
+. When the build is finished, the resulting image name and ID will be shown.
+Take note of this image ID.
++
+[source,console]
+----
+==> Builds finished. The artifacts of successful builds are:
+--> oxide-instance.suse-linux-micro: suse-linux-micro-2026-06-22 (55bcf752-595e-425d-9923-817f82b0d5b8)
+----

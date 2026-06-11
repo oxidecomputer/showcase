@@ -1,0 +1,38 @@
+= Kubernetes Terraform Configuration
+
+This Terraform configuration creates a Kubernetes cluster on Oxide using the
+Oxide Rancher node driver.
+
+== Requirements
+
+* link:https://developer.hashicorp.com/terraform[`terraform`]
+
+== Usage
+
+. Initialize the Terraform configuration.
++
+[source,console]
+----
+terraform init
+----
+
+. Apply the Terraform configuration.
++
+[source,console]
+----
+terraform apply
+----
+
+. When the apply is finished, take note of the outputs.
++
+[source,console]
+----
+Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+cluster_name = "oxide-k8s"
+cluster_v1_id = "c-m-f7l4lc5h"
+kube_config = <sensitive>
+rancher_url = "https://45.154.216.222.sslip.io"
+----
