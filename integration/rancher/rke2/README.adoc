@@ -1,0 +1,59 @@
+= RKE2 Terraform Configuration
+
+This Terraform configuration creates an RKE2 Kubernetes cluster on Oxide running
+on SUSE Linux Micro instances.
+
+== Requirements
+
+* link:https://developer.hashicorp.com/terraform[`terraform`]
+* Oxide API credentials for your silo.
+
+== Usage
+
+. Create your `terraform.tfvars` file.
++
+.terraform.tfvars
+[source,hcl]
+----
+project = "my-project"
+
+# SUSE Linux Micro image that was just built.
+source_image_id = "55bcf752-595e-425d-9923-817f82b0d5b8"
+
+# Optional: Existing Oxide SSH public key IDs to facilitate instance debugging.
+# ssh_public_keys = [
+#   "529885a0-2919-463a-a588-ac48f100a165",
+# ]
+----
+
+. Initialize the Terraform configuration.
++
+[source,console]
+----
+terraform init
+----
+
+. Apply the Terraform configuration.
++
+[source,console]
+----
+terraform apply
+----
+
+. When the apply is finished, take note of the outputs.
++
+[source,console]
+----
+Apply complete! Resources: 15 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+kubeconfig = "/Users/example/Projects/Oxide/showcase/integration/rancher/rke2/.kube/config"
+project = "my-project"
+rancher_dns_name = "45.154.216.222.sslip.io"
+rke2_external_ip = "45.154.216.222"
+rke2_token = <sensitive>
+source_image_id = "55bcf752-595e-425d-9923-817f82b0d5b8"
+subnet = "rke2"
+vpc = "rke2"
+----

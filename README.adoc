@@ -1,0 +1,7 @@
+= Oxide Showcase
+
+A showcase of applications, integrations, and other automation running on Oxide.
+
+== Integrations
+
+* link:integration/rancher[Rancher]

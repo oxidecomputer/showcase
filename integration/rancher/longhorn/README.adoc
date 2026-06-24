@@ -1,0 +1,43 @@
+= Longhorn Terraform Configuration
+
+This Terraform configuration installs link:https://longhorn.io[Longhorn] on the
+Kubernetes cluster created by the link:../k8s[`k8s`] configuration, then runs a
+benchmark `fio` Job against a 5 GiB Longhorn volume.
+
+The Job provisions a 5 GiB PVC backed by the `longhorn` storage class and runs a
+random read/write `fio` test against it. The Job completes successfully once the
+benchmark finishes.
+
+== Requirements
+
+* link:https://developer.hashicorp.com/terraform[`terraform`]
+* A Kubernetes cluster provisioned by the link:../k8s[`k8s`] configuration.
+
+== Usage
+
+. Initialize the Terraform configuration.
++
+[source,console]
+----
+terraform init
+----
+
+. Apply the Terraform configuration.
++
+[source,console]
+----
+terraform apply
+----
+
+. When the apply is finished, the job has successfully completed its `fio` test.
++
+[source,console]
+----
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+fio_job = "fio-test"
+longhorn_namespace = "longhorn-system"
+longhorn_version = "1.9.1"
+----

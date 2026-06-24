@@ -1,0 +1,44 @@
+= Rancher Terraform Configuration
+
+This Terraform configuration installs Rancher on RKE2.
+
+== Requirements
+
+* link:https://developer.hashicorp.com/terraform[`terraform`]
+
+== Usage
+
+. Create your `terraform.tfvars` file.
++
+.terraform.tfvars
+[source,hcl]
+----
+rancher_password = "my-rancher-password"
+----
+
+. Initialize the Terraform configuration.
++
+[source,console]
+----
+terraform init
+----
+
+. Apply the Terraform configuration.
++
+[source,console]
+----
+terraform apply
+----
+
+. When the apply is finished, take note of the outputs.
++
+[source,console]
+----
+Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+rancher_token = <sensitive>
+rancher_url = "https://45.154.216.222.sslip.io"
+rancher_user = "admin"
+----

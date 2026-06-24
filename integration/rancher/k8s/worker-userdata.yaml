@@ -1,0 +1,24 @@
+#cloud-config
+# Format and mount the local disk attached to each worker for Longhorn.
+write_files:
+  - path: /opt/bootstrap/prepare-longhorn-disk.sh
+    permissions: "0755"
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -euo pipefail
+
+      # The Longhorn data disk, addressed by its fixed PCI path.
+      disk="/dev/disk/by-path/pci-0000:00:11.0-nvme-1"
+
+      # Format it once, then mount at /var/mnt/longhorn (nofail so a missing
+      # disk never blocks boot).
+      blkid "$disk" >/dev/null 2>&1 || mkfs.ext4 "$disk"
+
+      mkdir -p /var/mnt/longhorn
+      grep -q " /var/mnt/longhorn " /etc/fstab || \
+        echo "$disk /var/mnt/longhorn ext4 defaults,nofail 0 2" >> /etc/fstab
+      mount /var/mnt/longhorn
+
+runcmd:
+  - [ /bin/bash, -c, "/opt/bootstrap/prepare-longhorn-disk.sh > /var/log/longhorn-disk.log 2>&1 || echo PREPARE_FAILED >> /var/log/longhorn-disk.log" ]
