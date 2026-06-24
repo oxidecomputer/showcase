@@ -30,7 +30,7 @@ source "oxide-instance" "suse-linux-micro" {
   subnet  = var.subnet
   ip_pool = var.ip_pool != "" ? var.ip_pool : null
 
-  artifact_name        = "suse-linux-micro-${local.suffix}"
+  artifact_name = "suse-linux-micro-${local.suffix}"
 
   communicator = "ssh"
   ssh_username = var.ssh_username
@@ -41,7 +41,7 @@ build {
   name    = "suse-linux-micro"
   sources = ["source.oxide-instance.suse-linux-micro"]
 
-  # Register with SUSE and install iSCSI packages.
+  # Register with SUSE, install iSCSI packages, and update the OS.
   provisioner "shell" {
     environment_vars = [
       "SCC_REGCODE=${var.scc_regcode}",
@@ -51,6 +51,7 @@ build {
       "set -euxo pipefail",
       "sudo transactional-update --non-interactive register -r \"$SCC_REGCODE\" -e \"$SCC_EMAIL\"",
       "sudo transactional-update --continue --non-interactive pkg install -y open-iscsi",
+      "sudo transactional-update --continue --non-interactive up",
     ]
   }
 
