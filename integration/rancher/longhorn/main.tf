@@ -9,6 +9,11 @@ resource "helm_release" "longhorn" {
 
   wait    = true
   timeout = 900
+
+  set {
+    name  = "defaultSettings.deletingConfirmationFlag"
+    value = "true"
+  }
 }
 
 resource "kubernetes_persistent_volume_claim" "fio" {
