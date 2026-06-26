@@ -14,8 +14,7 @@ This Terraform configuration configures the Oxide Rancher Node Driver on Rancher
 .terraform.tfvars
 [source,hcl]
 ----
-oxide_host  = "https://oxide.sys.example.com"
-oxide_token = "oxide-token-XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+oxide_profile = "my-profile"
 ----
 
 . Initialize the Terraform configuration.

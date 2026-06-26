@@ -4,7 +4,7 @@ terraform {
   required_providers {
     oxide = {
       source  = "oxidecomputer/oxide"
-      version = ">= 0.20.0"
+      version = ">= 0.20.1"
     }
     random = {
       source  = "hashicorp/random"
@@ -21,4 +21,5 @@ terraform {
   }
 }
 
+# Configured via environment variables.
 provider "oxide" {}

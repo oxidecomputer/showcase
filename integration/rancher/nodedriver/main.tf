@@ -1,3 +1,7 @@
+locals {
+  oxide_credentials = provider::oxide::credentials(pathexpand(var.oxide_credentials_file))
+}
+
 resource "kubernetes_manifest" "oxide_nodedriver" {
   manifest = {
     apiVersion = "management.cattle.io/v3"
@@ -37,8 +41,8 @@ resource "kubernetes_secret" "oxide" {
   }
 
   data = {
-    "oxidecredentialConfig-host"  = var.oxide_host
-    "oxidecredentialConfig-token" = var.oxide_token
+    "oxidecredentialConfig-host"  = local.oxide_credentials[var.oxide_profile].host
+    "oxidecredentialConfig-token" = local.oxide_credentials[var.oxide_profile].token
   }
 
   depends_on = [kubernetes_manifest.oxide_nodedriver]

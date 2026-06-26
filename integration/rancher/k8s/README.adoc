@@ -33,6 +33,6 @@ Outputs:
 
 cluster_name = "oxide-k8s"
 cluster_v1_id = "c-m-f7l4lc5h"
-kube_config = <sensitive>
+kubeconfig = "/Users/example/Projects/Oxide/showcase/integration/rancher/k8s/.kube/config"
 rancher_url = "https://45.154.216.222.sslip.io"
 ----

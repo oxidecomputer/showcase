@@ -12,12 +12,11 @@ SUSE Linux Micro.
 
 == Usage
 
-. Export your Oxide API credentials for your silo.
+. Specify which Oxide credentials profile to use.
 +
-[source,console]
+[source,shell]
 ----
-export OXIDE_HOST='https://oxide.sys.example.com'
-export OXIDE_TOKEN='oxide-token-abc123'
+export OXIDE_PROFILE='my-profile'
 ----
 
 . Download the `SL-Micro.x86_64-6.2-Base-GM.raw.xz` SUSE Linux Micro image from

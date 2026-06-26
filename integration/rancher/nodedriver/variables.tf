@@ -1,12 +1,12 @@
-variable "oxide_host" {
-  description = "Oxide host the node driver targets."
+variable "oxide_profile" {
+  description = "Oxide profile to use for node driver authentication to Oxide. Read from `oxide_credentials_file`."
   type        = string
 }
 
-variable "oxide_token" {
-  description = "Oxide API token the node driver uses."
+variable "oxide_credentials_file" {
+  description = "Path to the Oxide credentials file to read authentication credentials from. Leave blank to use the default location."
   type        = string
-  sensitive   = true
+  default     = ""
 }
 
 variable "oxide_nodedriver_version" {

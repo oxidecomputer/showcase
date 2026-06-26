@@ -20,3 +20,26 @@ provider "registry.terraform.io/hashicorp/kubernetes" {
     "zh:faf23e45f0090eef8ba28a8aac7ec5d4fdf11a36c40a8d286304567d71c1e7db",
   ]
 }
+
+provider "registry.terraform.io/oxidecomputer/oxide" {
+  version     = "0.20.1"
+  constraints = ">= 0.20.1"
+  hashes = [
+    "h1:q+C643mae/DV4ZCQBufpfdb4QXqRzaK3uA0OEyOAHxo=",
+    "zh:00269bb4b81263ab48a42088b3ffc9d4b51c19689d8894b5011cd609f5d67ada",
+    "zh:1a3573b71eb1fecf92eebf01534aee238338bf8d97c229504d2128a367ae927b",
+    "zh:340c31aca5e4609e7629bbb69cb796d27f7b28df6d784ed3c0db0bad1dfdde4c",
+    "zh:3c6daf0444ebebf0f52fe70958148c8cfa2110c3846be3fc5f1106bdff803be6",
+    "zh:46cd71a6ab76e59e10f5b02b59c44dac5e0c9a1e5a35ec1ccf13eb156af996bd",
+    "zh:62148cf6772d5e5ed5844f401d157f828250f684a2cc8f8c405b396334586164",
+    "zh:62dba35ebe8c965961269e69cb2e3050b7cf3958a8052a8383e1c9230f07a4fc",
+    "zh:68ff3669ccf6e1c9e29816c2b79a7030b0b6add53dd3ee19d5d666ef02f772ee",
+    "zh:9c2cc5d5ec6f94aedb770da112db09191a30f444b10200bd2ea1c4c8f109f6c5",
+    "zh:b013a665179fcd5cebff6aef4b2736c94ff287cc2e2f7b10792c64e576393edf",
+    "zh:b9b1cde4de22c3fefd642ba835d3e6d7a78f9993928418d0c35fd965d2d3a0ca",
+    "zh:b9faa23637cc9f8a11dd354fd7252f404960689bf3e9cea3ec762d8617c7017c",
+    "zh:ccd77899733987f16dc77336e9de622a0816ba0d99158a6c9e686f5b449aec4c",
+    "zh:d0037851dd97c9b8f1d15ffd86e67c5cf88a71644f2f59aeb12b8d5fb79f2d54",
+    "zh:f26e0763dbe6a6b2195c94b44696f2110f7f55433dc142839be16b9697fa5597",
+  ]
+}

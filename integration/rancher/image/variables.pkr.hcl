@@ -9,7 +9,7 @@ variable "source_image_project" {
   default     = ""
 }
 
-variable "project_name" {
+variable "project" {
   description = "Project where the build instance and resulting image are created."
   type        = string
 }
