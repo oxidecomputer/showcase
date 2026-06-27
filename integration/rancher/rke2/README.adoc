@@ -35,27 +35,27 @@ source_image_id = "55bcf752-595e-425d-9923-817f82b0d5b8"
 
 . Initialize the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform init
 ----
 
 . Apply the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform apply
 ----
 
 . When the apply is finished, take note of the outputs.
 +
-[source,console]
+[source,shell]
 ----
 Apply complete! Resources: 15 added, 0 changed, 0 destroyed.
 
 Outputs:
 
-kubeconfig = "/Users/example/Projects/Oxide/showcase/integration/rancher/rke2/.kube/config"
+kubeconfig = "/Users/example/showcase/integration/rancher/rke2/.kube/config"
 project = "my-project"
 rancher_dns_name = "45.154.216.222.sslip.io"
 rke2_external_ip = "45.154.216.222"

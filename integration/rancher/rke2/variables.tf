@@ -39,16 +39,16 @@ variable "rke2_channel" {
   default     = "v1.32"
 }
 
-variable "ip_pool_ephemeral" {
-  description = "Ephemeral IP pool. Used for SSH on the RKE2 nodes."
+variable "ephemeral_ip_pool_id" {
+  description = "IP pool ID to allocate an ephemeral IP from. Used for SSH on the RKE2 nodes. Leave unset to use the silo's default IP pool."
   type        = string
-  default     = "eng-vpn"
+  default     = ""
 }
 
-variable "ip_pool_floating" {
-  description = "Floating IP pool. Used to access the Kubernetes API."
+variable "floating_ip_pool_id" {
+  description = "IP pool ID to allocate a floating IP from. Used to access the Kubernetes API. Leave unset to use the silo's default IP pool."
   type        = string
-  default     = "public"
+  default     = ""
 }
 
 variable "node_count" {
