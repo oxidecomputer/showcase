@@ -17,7 +17,7 @@ data "oxide-image" "source" {
 }
 
 source "oxide-instance" "suse-linux-micro" {
-  project            = var.project_name
+  project            = var.project
   boot_disk_image_id = data.oxide-image.source.image_id
   boot_disk_size     = var.boot_disk_size
 

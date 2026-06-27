@@ -10,6 +10,13 @@ on SUSE Linux Micro instances.
 
 == Usage
 
+. Specify which Oxide credentials profile to use.
++
+[source,shell]
+----
+export OXIDE_PROFILE='my-profile'
+----
+
 . Create your `terraform.tfvars` file.
 +
 .terraform.tfvars

@@ -6,6 +6,10 @@ terraform {
       source  = "hashicorp/kubernetes"
       version = "~> 2.30"
     }
+    oxide = {
+      source  = "oxidecomputer/oxide"
+      version = ">= 0.20.1"
+    }
   }
 }
 
