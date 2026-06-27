@@ -20,6 +20,11 @@ variable "rancher_password" {
   description = "Rancher password. Used as the Helm bootstrapPassword and adopted as the permanent admin password by the nodedriver stage."
   type        = string
   sensitive   = true
+
+  validation {
+    condition     = length(var.rancher_password) >= 12
+    error_message = "The rancher_password must be at least 12 characters."
+  }
 }
 
 variable "cert_manager_version" {

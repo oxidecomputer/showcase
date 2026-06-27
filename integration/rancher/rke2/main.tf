@@ -2,14 +2,6 @@ data "oxide_project" "rke2" {
   name = var.project
 }
 
-data "oxide_ip_pool" "ephemeral" {
-  name = var.ip_pool_ephemeral
-}
-
-data "oxide_ip_pool" "floating" {
-  name = var.ip_pool_floating
-}
-
 data "oxide_instance_external_ips" "node" {
   count       = var.node_count
   instance_id = oxide_instance.node[count.index].id
@@ -50,7 +42,7 @@ resource "oxide_floating_ip" "rke2" {
   project_id  = data.oxide_project.rke2.id
   name        = "rke2"
   description = "Stable external address for Rancher and the Kubernetes API."
-  ip_pool_id  = data.oxide_ip_pool.floating.id
+  ip_pool_id  = var.floating_ip_pool_id != "" ? var.floating_ip_pool_id : null
 }
 
 resource "oxide_vpc" "rke2" {
@@ -135,7 +127,7 @@ resource "oxide_instance" "node" {
   }]
 
   external_ips = {
-    ephemeral = [{ pool_id = data.oxide_ip_pool.ephemeral.id }]
+    ephemeral = [{ pool_id = var.ephemeral_ip_pool_id != "" ? var.ephemeral_ip_pool_id : null }]
     floating  = count.index == 0 ? [{ id = oxide_floating_ip.rke2.id }] : null
   }
 

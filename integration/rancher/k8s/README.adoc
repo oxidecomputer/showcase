@@ -11,21 +11,21 @@ Oxide Rancher node driver.
 
 . Initialize the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform init
 ----
 
 . Apply the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform apply
 ----
 
 . When the apply is finished, take note of the outputs.
 +
-[source,console]
+[source,shell]
 ----
 Apply complete! Resources: 4 added, 0 changed, 0 destroyed.
 
@@ -33,6 +33,6 @@ Outputs:
 
 cluster_name = "oxide-k8s"
 cluster_v1_id = "c-m-f7l4lc5h"
-kubeconfig = "/Users/example/Projects/Oxide/showcase/integration/rancher/k8s/.kube/config"
+kubeconfig = "/Users/example/showcase/integration/rancher/k8s/.kube/config"
 rancher_url = "https://45.154.216.222.sslip.io"
 ----

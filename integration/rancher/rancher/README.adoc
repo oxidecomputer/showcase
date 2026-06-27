@@ -18,21 +18,21 @@ rancher_password = "my-rancher-password"
 
 . Initialize the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform init
 ----
 
 . Apply the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform apply
 ----
 
 . When the apply is finished, take note of the outputs.
 +
-[source,console]
+[source,shell]
 ----
 Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
 

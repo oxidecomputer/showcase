@@ -19,45 +19,65 @@ SUSE Linux Micro.
 export OXIDE_PROFILE='my-profile'
 ----
 
-. Download the `SL-Micro.x86_64-6.2-Base-GM.raw.xz` SUSE Linux Micro image from
-https://www.suse.com/download/sle-micro/.
+. Download the `SL-Micro.x86_64-6.2-Base-qcow-GM.qcow2` SUSE Linux Micro image
+from https://www.suse.com/download/sle-micro/.
 
-. Unarchive the SUSE Linux Micro image.
+. Convert the image from QCOW2 to raw.
 +
-[source,console]
+[source,shell]
 ----
-xz -d SL-Micro.x86_64-6.2-Base-GM.raw.xz
+qemu-img convert -f qcow2 -O raw SL-Micro.x86_64-6.2-Base-qcow-GM.qcow2 SL-Micro.x86_64-6.2-Base-GM.raw
 ----
 
-. Upload the SUSE Linux Micro image to your Oxide project. See
+. Upload the raw SUSE Linux Micro image to your Oxide project. See
 link:https://docs.oxide.computer/guides/creating-and-sharing-images[Images] for
 information on how to do so.
 
 . Copy the example variables file and replace the values with your own.
 +
-[source,console]
+[source,shell]
 ----
 cp secrets.pkrvars.hcl.example secrets.pkrvars.hcl
+----
++
+.secrets.pkrvars.hcl
+[source,hcl]
+----
+project = "my-project"
+
+# Source image settings.
+source_image_name = "suse-linux-micro-6-2-base-gm"
+# Uncomment if using a project image instead of a silo image.
+# source_image_project = "my-project"
+
+# SUSE Customer Center (SCC) information.
+scc_regcode = "ADFEXXXXXXXXXXXX"
+scc_email   = "you@example.com"
+
+# Optional: Configure specific network settings.
+# ip_pool = "my-ip-pool"
+# vpc     = "default"
+# subnet  = "default"
 ----
 
 . Initialize the Packer configuration.
 +
-[source,console]
+[source,shell]
 ----
 packer init .
 ----
 
 . Build the image.
 +
-[source,console]
+[source,shell]
 ----
 packer build -var-file=secrets.pkrvars.hcl .
 ----
 
 . When the build is finished, the resulting image name and ID will be shown.
-Take note of this image ID.
+Take note of this image ID as it'll be used in subsequent sections.
 +
-[source,console]
+[source,shell]
 ----
 ==> Builds finished. The artifacts of successful builds are:
 --> oxide-instance.suse-linux-micro: suse-linux-micro-2026-06-22 (55bcf752-595e-425d-9923-817f82b0d5b8)

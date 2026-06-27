@@ -17,21 +17,21 @@ benchmark finishes.
 
 . Initialize the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform init
 ----
 
 . Apply the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform apply
 ----
 
 . When the apply is finished, the job has successfully completed its `fio` test.
 +
-[source,console]
+[source,shell]
 ----
 Apply complete! Resources: 3 added, 0 changed, 0 destroyed.
 
