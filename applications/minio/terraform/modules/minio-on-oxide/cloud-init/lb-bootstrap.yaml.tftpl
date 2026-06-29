@@ -1,0 +1,235 @@
+#cloud-config
+# Cloud-init for LB nodes.
+# Installs HAProxy + oxide CLI, drops failover credentials and the watcher
+# service. HAProxy config itself lands via deploy-cluster-tf.sh (peer IPs
+# aren't known at instance-create time).
+#
+# The watcher runs on both LBs symmetrically. It TCP-polls the peer's
+# HAProxy on :443; after FAIL_THRESHOLD consecutive failures it attaches
+# the Floating IP to itself via the Oxide API.
+#
+# Startup safeguards prevent split-brain during initial bring-up:
+#   - GRACE_SECONDS: ignore failures for the first N seconds after start
+#   - local-haproxy check: don't try to take over if our own HAProxy is down
+#   (we wouldn't be able to serve traffic anyway)
+
+hostname: ${hostname}
+manage_etc_hosts: true
+
+users:
+  - default
+  - name: ubuntu
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+
+package_update: true
+package_upgrade: false
+packages:
+  - haproxy
+  - keepalived
+  - curl
+  - jq
+  - chrony
+  - netcat-openbsd
+
+write_files:
+  # Oxide CLI credentials for the FIP failover script.
+  # Tight mode, root-owned. Variable comes from TF_VAR_oxide_credentials_for_failover.
+  - path: /root/.config/oxide/credentials.toml
+    permissions: '0600'
+    owner: root:root
+    content: |
+      ${indent(6, oxide_credentials_for_failover)}
+
+  # Env file for the watcher service. Rendered per-LB so each one knows
+  # its peer hostname, the project, and the FIP name.
+  # OXIDE_PROFILE selects which [profile.X] section in credentials.toml
+  # the CLI should use. Without it, the CLI errors out when the file has
+  # multiple profiles and no default-profile config.toml.
+  - path: /etc/default/minio-lb-watcher
+    permissions: '0644'
+    owner: root:root
+    content: |
+      OXIDE_PROFILE=${oxide_profile}
+      PROJECT=${project_name}
+      FIP_NAME=${fip_name}
+      PEER_HOSTNAME=${peer_hostname}
+      PEER_PORT=443
+      POLL_INTERVAL=3
+      FAIL_THRESHOLD=3
+      GRACE_SECONDS=120
+
+  # Failover script: attach the FIP to this LB. Idempotent - no-op if
+  # already attached to us.
+  - path: /usr/local/bin/minio-fip-failover.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -uo pipefail
+      log() { logger -t minio-fip-failover "$*"; echo "[minio-fip-failover] $*"; }
+
+      PROJECT="$${1:-}"
+      FIP_NAME="$${2:-}"
+      if [ -z "$PROJECT" ] || [ -z "$FIP_NAME" ]; then
+        log "ERROR: usage: $0 <project> <fip_name>"
+        exit 2
+      fi
+
+      SELF="$(hostname)"
+      self_id=$(oxide instance view --project "$PROJECT" --instance "$SELF" 2>/dev/null \
+        | jq -r '.id // empty')
+      if [ -z "$self_id" ]; then
+        log "ERROR: could not resolve own instance id for $SELF"
+        exit 1
+      fi
+
+      current_parent=$(oxide floating-ip view --project "$PROJECT" \
+        --floating-ip "$FIP_NAME" 2>/dev/null | jq -r '.instance_id // empty')
+      if [ "$current_parent" = "$self_id" ]; then
+        log "FIP $FIP_NAME already attached to $SELF, no-op"
+        exit 0
+      fi
+
+      # Detach first (best effort). If it's not attached anywhere this
+      # will error harmlessly; we don't care.
+      oxide floating-ip detach --project "$PROJECT" \
+        --floating-ip "$FIP_NAME" >/dev/null 2>&1 || true
+
+      for attempt in 1 2 3 4 5 6; do
+        if oxide floating-ip attach \
+            --project "$PROJECT" \
+            --floating-ip "$FIP_NAME" \
+            --kind instance \
+            --parent "$SELF"; then
+          log "FIP $FIP_NAME attached to $SELF on attempt $attempt"
+          exit 0
+        fi
+        log "attach attempt $attempt failed, retrying in 5s"
+        sleep 5
+      done
+      log "ERROR: FIP attach failed after 6 attempts"
+      exit 1
+
+  # Watcher script: TCP-poll the peer's HAProxy port, trigger failover
+  # after threshold breached. Resolves peer IP via Oxide API on startup.
+  - path: /usr/local/bin/minio-lb-watcher.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      set -uo pipefail
+      log() { logger -t minio-lb-watcher "$*"; echo "[minio-lb-watcher] $*"; }
+
+      # Pulled from /etc/default/minio-lb-watcher via systemd EnvironmentFile
+      : "$${PROJECT:?PROJECT must be set}"
+      : "$${FIP_NAME:?FIP_NAME must be set}"
+      : "$${PEER_HOSTNAME:?PEER_HOSTNAME must be set}"
+      PEER_PORT="$${PEER_PORT:-443}"
+      POLL_INTERVAL="$${POLL_INTERVAL:-3}"
+      FAIL_THRESHOLD="$${FAIL_THRESHOLD:-3}"
+      GRACE_SECONDS="$${GRACE_SECONDS:-120}"
+
+      SELF="$(hostname)"
+      start_time=$(date +%s)
+      fail_count=0
+
+      log "watcher starting: self=$SELF peer=$PEER_HOSTNAME fip=$FIP_NAME"
+      log "poll_interval=$${POLL_INTERVAL}s threshold=$FAIL_THRESHOLD grace=$${GRACE_SECONDS}s"
+
+      # Resolve peer private IP via Oxide API. Retry until we get it -
+      # the peer instance may still be coming up on first boot.
+      peer_ip=""
+      while [ -z "$peer_ip" ]; do
+        peer_ip=$(oxide instance nic list \
+          --project "$PROJECT" \
+          --instance "$PEER_HOSTNAME" 2>/dev/null \
+          | jq -r '.[0].ip_stack.value.ip // empty')
+        if [ -z "$peer_ip" ]; then
+          log "could not resolve peer IP for $PEER_HOSTNAME yet, retrying in 10s"
+          sleep 10
+        fi
+      done
+      log "resolved peer IP: $peer_ip"
+
+      local_haproxy_up() {
+        systemctl is-active haproxy >/dev/null 2>&1
+      }
+
+      while true; do
+        if nc -z -w 2 "$peer_ip" "$PEER_PORT" >/dev/null 2>&1; then
+          if [ "$fail_count" -gt 0 ]; then
+            log "peer $PEER_HOSTNAME ($peer_ip:$PEER_PORT) recovered after $fail_count failures"
+          fi
+          fail_count=0
+        else
+          fail_count=$((fail_count + 1))
+          log "peer poll failed ($fail_count/$FAIL_THRESHOLD) - $peer_ip:$PEER_PORT unreachable"
+
+          elapsed=$(( $(date +%s) - start_time ))
+          if [ "$elapsed" -lt "$GRACE_SECONDS" ]; then
+            log "still in grace window ($${elapsed}s/$${GRACE_SECONDS}s), not acting"
+          elif ! local_haproxy_up; then
+            log "local HAProxy is not active, not taking over (we can't serve anyway)"
+            fail_count=0
+          elif [ "$fail_count" -ge "$FAIL_THRESHOLD" ]; then
+            log "threshold reached, attempting FIP takeover"
+            if /usr/local/bin/minio-fip-failover.sh "$PROJECT" "$FIP_NAME"; then
+              log "takeover succeeded"
+            else
+              log "takeover failed, will retry on next poll"
+            fi
+            # Don't reset fail_count - failover is idempotent. If peer
+            # recovers on next poll we'll see it and reset normally.
+          fi
+        fi
+        sleep "$POLL_INTERVAL"
+      done
+
+  # systemd unit for the watcher.
+  - path: /etc/systemd/system/minio-lb-watcher.service
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=MinIO LB FIP failover watcher
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      Type=simple
+      EnvironmentFile=/etc/default/minio-lb-watcher
+      ExecStart=/usr/local/bin/minio-lb-watcher.sh
+      Restart=always
+      RestartSec=5
+      User=root
+      StandardOutput=journal
+      StandardError=journal
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl enable --now chrony
+  # Stop services - real HAProxy config lands via deploy-cluster-tf.sh
+  - systemctl stop haproxy || true
+  - systemctl disable haproxy || true
+  - systemctl stop keepalived || true
+  - systemctl disable keepalived || true
+  # Install oxide CLI (matches the Linux x86_64 release for the version
+  # used in the failover script). This URL pins to v0.16.0+2026032500.0.0
+  # which is what the manual build used; update if you bump the CLI version.
+  - |
+    cd /tmp
+    curl -fLsS "https://github.com/oxidecomputer/oxide.rs/releases/download/v0.16.0+2026032500.0.0/oxide-cli-x86_64-unknown-linux-gnu.tar.xz" -o oxide.tar.xz
+    mkdir -p oxide-extract
+    tar -xJf oxide.tar.xz -C oxide-extract
+    install -m 755 "$(find oxide-extract -name oxide -type f -executable | head -1)" /usr/local/bin/oxide
+    rm -rf oxide.tar.xz oxide-extract
+  # Enable + start the watcher. It'll wait through GRACE_SECONDS (120s
+  # by default) before acting on poll failures, which gives HAProxy time
+  # to come up on both LBs via deploy-cluster-tf.sh.
+  - systemctl daemon-reload
+  - systemctl enable --now minio-lb-watcher

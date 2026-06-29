@@ -1,0 +1,20 @@
+// Terraform state - contains sensitive values
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+crash.log
+crash.*.log
+
+// Variable files with secrets
+terraform.tfvars
+*.auto.tfvars
+
+// Provider cache
+.terraform/
+.terraform.lock.hcl
+
+// CLI override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
