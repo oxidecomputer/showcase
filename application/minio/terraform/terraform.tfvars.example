@@ -1,0 +1,48 @@
+// Copy this file to terraform.tfvars and fill in the values for your environment.
+// terraform.tfvars is gitignored.
+//
+// Authentication: set OXIDE_HOST and OXIDE_TOKEN (or OXIDE_PROFILE) in your shell
+// before running `terraform plan` / `terraform apply`. Do NOT put credentials here.
+//
+// Find Ubuntu image ID with:
+//   oxide image list --project minio-tf-poc | jq '.[] | {name, id}'
+// (or upload Ubuntu 24.04 via the console first - block size MUST be 512)
+//
+// Find your SSH public key:
+//   cat ~/.ssh/id_ed25519.pub
+//
+// Get the FIP-failover credentials by reading your laptop's existing oxide credentials:
+//   cat ~/.config/oxide/credentials.toml
+// Then export it as TF_VAR_oxide_credentials_for_failover BEFORE apply:
+//   export TF_VAR_oxide_credentials_for_failover="$(cat ~/.config/oxide/credentials.toml)"
+
+project_name   = "minio-tf-poc"
+create_project = true
+
+vpc_name    = "minio-vpc"
+subnet_cidr = "10.10.0.0/24"
+
+ubuntu_image_id = "REPLACE-WITH-IMAGE-UUID"
+ssh_public_key  = "ssh-ed25519 AAAA... your-key-here"
+
+minio_instance_count    = 4
+minio_ncpus             = 4
+minio_memory_gib        = 16
+minio_boot_disk_gib     = 30
+minio_data_disk_count   = 4
+minio_data_disk_gib     = 100
+
+lb_instance_count = 2
+lb_ncpus          = 2
+lb_memory_gib     = 4
+lb_boot_disk_gib  = 20
+
+ip_pool_name = "public"
+
+// oxide_profile must match a [profile.X] section in your credentials.toml.
+// Usually the silo name, e.g. "employee-d1ce31bdc66a5171". The LB watcher
+// passes it to the oxide CLI as $OXIDE_PROFILE so failover can authenticate.
+oxide_profile = "REPLACE-WITH-YOUR-PROFILE-NAME"
+
+// oxide_credentials_for_failover is intentionally NOT in this file.
+// Set it via env var: export TF_VAR_oxide_credentials_for_failover="$(cat ~/.config/oxide/credentials.toml)"

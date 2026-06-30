@@ -5,3 +5,7 @@ A showcase of applications, integrations, and other automation running on Oxide.
 == Integrations
 
 * link:integration/rancher[Rancher]
+
+== Applications
+
+* link:./application/minio[MinIO]

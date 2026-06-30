@@ -1,0 +1,70 @@
+{
+  "rules": [
+    {
+      "name": "allow-icmp",
+      "description": "allow inbound ICMP traffic from anywhere",
+      "priority": 65534,
+      "action": "allow",
+      "direction": "inbound",
+      "status": "enabled",
+      "targets": [
+        { "type": "vpc", "value": "minio-vpc" }
+      ],
+      "filters": {
+        "protocols": [
+          { "type": "icmp" }
+        ]
+      }
+    },
+    {
+      "name": "allow-internal-inbound",
+      "description": "allow inbound traffic to all instances within the VPC if originated within the VPC",
+      "priority": 65534,
+      "action": "allow",
+      "direction": "inbound",
+      "status": "enabled",
+      "targets": [
+        { "type": "vpc", "value": "minio-vpc" }
+      ],
+      "filters": {
+        "hosts": [
+          { "type": "vpc", "value": "minio-vpc" }
+        ]
+      }
+    },
+    {
+      "name": "allow-ssh",
+      "description": "allow inbound TCP connections on port 22 from anywhere",
+      "priority": 65534,
+      "action": "allow",
+      "direction": "inbound",
+      "status": "enabled",
+      "targets": [
+        { "type": "vpc", "value": "minio-vpc" }
+      ],
+      "filters": {
+        "ports": ["22"],
+        "protocols": [
+          { "type": "tcp" }
+        ]
+      }
+    },
+    {
+      "name": "allow-https-inbound",
+      "description": "Allow TCP 443 inbound for the MinIO S3 endpoint via Floating IP",
+      "priority": 100,
+      "action": "allow",
+      "direction": "inbound",
+      "status": "enabled",
+      "targets": [
+        { "type": "vpc", "value": "minio-vpc" }
+      ],
+      "filters": {
+        "ports": ["443"],
+        "protocols": [
+          { "type": "tcp" }
+        ]
+      }
+    }
+  ]
+}

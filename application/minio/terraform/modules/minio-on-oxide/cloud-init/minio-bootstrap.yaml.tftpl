@@ -1,0 +1,142 @@
+#cloud-config
+# Phase 1 placeholder cloud-init for MinIO nodes.
+# Installs basic packages, formats data disks, installs the MinIO binary.
+# Does NOT form the cluster - that happens in a Phase 2 null_resource that
+# runs after all instances exist and their private IPs are known.
+
+hostname: ${hostname}
+manage_etc_hosts: true
+
+users:
+  - default
+  - name: ubuntu
+    ssh_authorized_keys:
+      - ${ssh_public_key}
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+
+package_update: true
+package_upgrade: false
+packages:
+  - xfsprogs
+  - curl
+  - jq
+  - chrony
+
+write_files:
+  - path: /usr/local/bin/minio-bootstrap.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/usr/bin/env bash
+      # Idempotent bootstrap for a MinIO node.
+      # Detects boot disk dynamically (Q-ENG-10: NVMe numbering is not stable).
+      set -euo pipefail
+      log() { logger -t minio-bootstrap "$*"; echo "[minio-bootstrap] $*"; }
+
+      # Create minio system user if absent
+      if ! id minio >/dev/null 2>&1; then
+        useradd --system --no-create-home --shell /sbin/nologin minio
+      fi
+
+      # Discover boot device (whichever NVMe holds /)
+      boot_dev=$(findmnt -no SOURCE / | sed 's|/dev/||; s|p[0-9]*$||')
+      log "Boot device detected: $boot_dev"
+
+      # Find all non-boot NVMe data devices. Use a bash filter instead of
+      # grep -v anchored on $ - the regex anchor confuses Terraform's
+      # templatefile escape rules (`$$` only becomes `$` when followed by `{`,
+      # standalone `$$` passes through literal).
+      all_nvme=()
+      while IFS= read -r d; do
+        all_nvme+=("$d")
+      done < <(lsblk -dn -o NAME | grep -E '^nvme[0-9]+n1$')
+      data_devs=()
+      for d in "$${all_nvme[@]}"; do
+        if [ "$d" != "$boot_dev" ]; then
+          data_devs+=("$d")
+        fi
+      done
+      if [ "$${#data_devs[@]}" -lt 4 ]; then
+        log "ERROR: expected at least 4 data disks, found $${#data_devs[@]}"
+        exit 1
+      fi
+
+      # Format + mount each as /mnt/diskN
+      for i in "$${!data_devs[@]}"; do
+        slot=$((i + 1))
+        dev="/dev/$${data_devs[$i]}"
+        mp="/mnt/disk$${slot}"
+        if ! blkid "$dev" >/dev/null 2>&1; then
+          log "Formatting $dev as XFS (label disk$slot)"
+          mkfs.xfs -f -L "disk$${slot}" "$dev"
+        fi
+        mkdir -p "$mp"
+        uuid=$(blkid -s UUID -o value "$dev")
+        if ! grep -q "$uuid" /etc/fstab; then
+          echo "UUID=$${uuid} $${mp} xfs defaults,noatime,inode64 0 0" >> /etc/fstab
+        fi
+      done
+      systemctl daemon-reload
+      mount -a
+
+      # MinIO subdirectory on each mount
+      for slot in 1 2 3 4; do
+        mkdir -p "/mnt/disk$${slot}/minio"
+        chown -R minio:minio "/mnt/disk$${slot}"
+      done
+
+      # MinIO binary
+      if [ ! -x /usr/local/bin/minio ]; then
+        curl -L https://dl.min.io/server/minio/release/linux-amd64/minio -o /usr/local/bin/minio
+        chmod +x /usr/local/bin/minio
+      fi
+
+      log "Bootstrap complete on $(hostname)"
+
+  - path: /etc/default/minio
+    permissions: '0640'
+    owner: root:root
+    content: |
+      # Phase 1 placeholder. MINIO_VOLUMES gets populated by the
+      # Phase 2 cluster-formation null_resource once peer IPs are known.
+      MINIO_ROOT_USER=${minio_root_user}
+      MINIO_ROOT_PASSWORD=${minio_root_password}
+      MINIO_VOLUMES=""
+      MINIO_OPTS="--address :9000 --console-address :9001"
+
+  - path: /etc/systemd/system/minio.service
+    permissions: '0644'
+    owner: root:root
+    content: |
+      [Unit]
+      Description=MinIO
+      Documentation=https://min.io/docs/minio/linux/index.html
+      Wants=network-online.target
+      After=network-online.target
+      AssertFileIsExecutable=/usr/local/bin/minio
+
+      [Service]
+      WorkingDirectory=/usr/local
+      User=minio
+      Group=minio
+      ProtectProc=invisible
+      EnvironmentFile=-/etc/default/minio
+      ExecStartPre=/bin/bash -c "if [ -z \"$${MINIO_VOLUMES}\" ]; then echo \"MINIO_VOLUMES is not set\"; exit 1; fi"
+      ExecStart=/usr/local/bin/minio server $MINIO_OPTS $MINIO_VOLUMES
+      Restart=always
+      LimitNOFILE=1048576
+      TimeoutStopSec=infinity
+      SendSIGKILL=no
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl enable --now chrony
+  - bash /usr/local/bin/minio-bootstrap.sh
+  - chown root:minio /etc/default/minio
+  - systemctl daemon-reload
+  - systemctl enable minio
+  # Don't start minio - MINIO_VOLUMES is empty and ExecStartPre would fail.
+  # The Phase 2 null_resource will populate it and start the service.
