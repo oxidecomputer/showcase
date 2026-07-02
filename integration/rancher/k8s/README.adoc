@@ -3,10 +3,6 @@
 This Terraform configuration creates a Kubernetes cluster on Oxide using the
 Oxide Rancher node driver.
 
-== Requirements
-
-* link:https://developer.hashicorp.com/terraform[`terraform`]
-
 == Usage
 
 . Initialize the Terraform configuration.

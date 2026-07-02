@@ -2,11 +2,6 @@
 
 This Terraform configuration configures the Oxide Rancher Node Driver on Rancher.
 
-== Requirements
-
-* link:https://developer.hashicorp.com/terraform[`terraform`]
-* Oxide API credentials for your silo.
-
 == Usage
 
 . Create your `terraform.tfvars` file.
@@ -14,26 +9,27 @@ This Terraform configuration configures the Oxide Rancher Node Driver on Rancher
 .terraform.tfvars
 [source,hcl]
 ----
+# The node driver will use the credentials from this Oxide profile.
 oxide_profile = "my-profile"
 ----
 
 . Initialize the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform init
 ----
 
 . Apply the Terraform configuration.
 +
-[source,console]
+[source,shell]
 ----
 terraform apply
 ----
 
 . When the apply is finished, take note of the outputs.
 +
-[source,console]
+[source,shell]
 ----
 Apply complete! Resources: 2 added, 0 changed, 0 destroyed.
 

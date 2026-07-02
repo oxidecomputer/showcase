@@ -3,18 +3,18 @@
 This Terraform configuration creates an RKE2 Kubernetes cluster on Oxide running
 on SUSE Linux Micro instances.
 
-== Requirements
-
-* link:https://developer.hashicorp.com/terraform[`terraform`]
-* Oxide API credentials for your silo.
-
 == Usage
 
-. Specify which Oxide credentials profile to use.
+. Export your Oxide credentials.
 +
 [source,shell]
 ----
+# Profile.
 export OXIDE_PROFILE='my-profile'
+
+# API token.
+export OXIDE_HOST='https://oxide.sys.example.com'
+export OXIDE_TOKEN='oxide-token-abc123'
 ----
 
 . Create your `terraform.tfvars` file.

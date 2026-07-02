@@ -3,20 +3,18 @@
 This Packer configuration builds a SUSE Linux Micro image with `open-iscsi`
 baked in, so downstream RKE2 nodes can run Longhorn.
 
-== Requirements
-
-* link:https://developer.hashicorp.com/packer[`packer`]
-* SUSE Customer Center (SCC) registration code and email address entitled to
-SUSE Linux Micro.
-* Oxide API credentials for your silo.
-
 == Usage
 
-. Specify which Oxide credentials profile to use.
+. Export your Oxide credentials.
 +
 [source,shell]
 ----
+# Profile.
 export OXIDE_PROFILE='my-profile'
+
+# API token.
+export OXIDE_HOST='https://oxide.sys.example.com'
+export OXIDE_TOKEN='oxide-token-abc123'
 ----
 
 . Download the `SL-Micro.x86_64-6.2-Base-qcow-GM.qcow2` SUSE Linux Micro image
@@ -30,8 +28,8 @@ qemu-img convert -f qcow2 -O raw SL-Micro.x86_64-6.2-Base-qcow-GM.qcow2 SL-Micro
 ----
 
 . Upload the raw SUSE Linux Micro image to your Oxide project. See
-link:https://docs.oxide.computer/guides/creating-and-sharing-images[Images] for
-information on how to do so.
+link:https://docs.oxide.computer/guides/creating-and-sharing-images[Images]
+for information on how to do so.
 
 . Copy the example variables file and replace the values with your own.
 +

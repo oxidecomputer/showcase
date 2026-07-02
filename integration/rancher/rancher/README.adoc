@@ -2,10 +2,6 @@
 
 This Terraform configuration installs Rancher on RKE2.
 
-== Requirements
-
-* link:https://developer.hashicorp.com/terraform[`terraform`]
-
 == Usage
 
 . Create your `terraform.tfvars` file.
