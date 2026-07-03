@@ -4,6 +4,43 @@ locals {
   vpc                 = data.terraform_remote_state.rke2.outputs.vpc
   subnet              = data.terraform_remote_state.rke2.outputs.subnet
   cloud_credential_id = data.terraform_remote_state.nodedriver.outputs.cloud_credential_id
+
+  oxide_credentials = provider::oxide::credentials(pathexpand(var.ccm_oxide_credentials_file))
+
+  # Credentials the CCM uses to talk to the Oxide API.
+  ccm_secret = yamlencode({
+    apiVersion = "v1"
+    kind       = "Secret"
+    metadata = {
+      name      = "oxide-cloud-controller-manager"
+      namespace = "kube-system"
+    }
+    type = "Opaque"
+    stringData = {
+      "oxide-host"    = local.oxide_credentials[var.ccm_oxide_profile].host
+      "oxide-token"   = local.oxide_credentials[var.ccm_oxide_profile].token
+      "oxide-project" = local.project
+    }
+  })
+
+  # The Oxide CCM must be installed early to allow Rancher to finish provisioning
+  # the cluster.
+  ccm_helmchart = yamlencode({
+    apiVersion = "helm.cattle.io/v1"
+    kind       = "HelmChart"
+    metadata = {
+      name      = "oxide-cloud-controller-manager"
+      namespace = "kube-system"
+    }
+    spec = {
+      bootstrap       = true
+      chart           = "oci://ghcr.io/oxidecomputer/helm-charts/oxide-cloud-controller-manager"
+      version         = var.ccm_version
+      targetNamespace = "kube-system"
+    }
+  })
+
+  ccm_manifest = "${local.ccm_secret}\n---\n${local.ccm_helmchart}"
 }
 
 resource "kubernetes_manifest" "control_plane" {
@@ -53,6 +90,15 @@ resource "rancher2_cluster_v2" "oxide" {
   kubernetes_version = var.kubernetes_version
 
   rke_config {
+    machine_global_config = yamlencode({
+      disable-cloud-controller    = true
+      kubelet-arg                 = ["cloud-provider=external"]
+      kube-controller-manager-arg = ["cloud-provider=external"]
+    })
+
+    # Install the Oxide CCM.
+    additional_manifest = local.ccm_manifest
+
     machine_pools {
       name                         = "control-plane"
       cloud_credential_secret_name = local.cloud_credential_id
