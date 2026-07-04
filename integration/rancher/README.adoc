@@ -57,7 +57,7 @@ in the following order.
 . link:./rke2[`rke2`]: Creates an RKE2 cluster running on SUSE Linux Micro instances.
 . link:./rancher[`rancher`]: Installs Rancher into the RKE2 cluster.
 . link:./nodedriver[`nodedriver`]: Configures the Oxide Rancher node driver within Rancher.
-. link:./k8s[`k8s`]: Provisions a Kubernetes cluster on Oxide using the Rancher node driver.
+. link:./k8s[`k8s`]: Provisions a Kubernetes cluster on Oxide using the Rancher node driver, running the Oxide cloud controller manager.
 . link:./longhorn[`longhorn`]: Installs Longhorn on the Kubernetes cluster and runs an `fio` benchmark.
 
 === Accessing Kubernetes

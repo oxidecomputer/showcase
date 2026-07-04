@@ -1,9 +1,17 @@
 = Kubernetes Terraform Configuration
 
 This Terraform configuration creates a Kubernetes cluster on Oxide using the
-Oxide Rancher node driver.
+Oxide Rancher node driver, running the Oxide cloud controller manager.
 
 == Usage
+
+. Create your `terraform.tfvars` file.
++
+.terraform.tfvars
+[source,hcl]
+----
+ccm_oxide_profile = "my-profile"
+----
 
 . Initialize the Terraform configuration.
 +

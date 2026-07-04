@@ -14,6 +14,10 @@ terraform {
       source  = "hashicorp/local"
       version = ">= 2.5"
     }
+    oxide = {
+      source  = "oxidecomputer/oxide"
+      version = ">= 0.20.1"
+    }
   }
 }
 
