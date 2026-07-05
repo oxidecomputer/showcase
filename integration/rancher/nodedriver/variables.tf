@@ -9,14 +9,14 @@ variable "oxide_credentials_file" {
   default     = ""
 }
 
-variable "oxide_nodedriver_version" {
-  description = "Release tag of oxidecomputer/rancher-machine-driver-oxide to install."
+variable "oxide_nodedriver_url" {
+  description = "URL to download the node driver binary from."
   type        = string
-  default     = "v0.11.0"
+  default     = "https://github.com/oxidecomputer/rancher-machine-driver-oxide/releases/download/v0.11.0/docker-machine-driver-oxide"
 }
 
 variable "oxide_nodedriver_checksum" {
-  description = "SHA256 of the docker-machine-driver-oxide binary for oxide_driver_version."
+  description = "SHA256 of the node driver binary at oxide_nodedriver_url."
   type        = string
   default     = "d0fd21a622b90fb2f2c9d99e70036bdbf8eceb75072ee506ff8fb784e1178b09"
 }

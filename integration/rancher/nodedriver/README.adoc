@@ -11,6 +11,10 @@ This Terraform configuration configures the Oxide Rancher Node Driver on Rancher
 ----
 # The node driver will use the credentials from this Oxide profile.
 oxide_profile = "my-profile"
+
+# Uncomment to use a different node driver version.
+# oxide_nodedriver_url      = "https://example.com/docker-machine-driver-oxide"
+# oxide_nodedriver_checksum = "<sha256-of-binary>"
 ----
 
 . Initialize the Terraform configuration.
