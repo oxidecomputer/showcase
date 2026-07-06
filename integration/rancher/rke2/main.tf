@@ -160,7 +160,18 @@ resource "terraform_data" "kubeconfig" {
   }
 
   provisioner "remote-exec" {
-    inline = ["until test -r /etc/rancher/rke2/rke2.yaml; do sleep 5; done"]
+    inline = [
+      <<-EOT
+        for i in $(seq 1 ${var.kubeconfig_wait_attempts}); do
+          test -r /etc/rancher/rke2/rke2.yaml && exit 0
+          sleep ${var.kubeconfig_wait_interval_seconds}
+        done
+        echo "gave up after ${var.kubeconfig_wait_attempts} attempts waiting for /etc/rancher/rke2/rke2.yaml" >&2
+        echo "--- last lines of /var/log/rke2-bootstrap.log ---" >&2
+        tail -n 50 /var/log/rke2-bootstrap.log >&2 || true
+        exit 1
+      EOT
+    ]
   }
 
   provisioner "local-exec" {

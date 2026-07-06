@@ -87,3 +87,15 @@ variable "scc_email" {
   type        = string
   default     = ""
 }
+
+variable "kubeconfig_wait_attempts" {
+  description = "Number of times to poll for RKE2's kubeconfig on the init node before failing."
+  type        = number
+  default     = 30
+}
+
+variable "kubeconfig_wait_interval_seconds" {
+  description = "Seconds to sleep between kubeconfig polls on the init node."
+  type        = number
+  default     = 5
+}
