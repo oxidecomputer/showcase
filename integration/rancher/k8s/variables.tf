@@ -63,10 +63,22 @@ variable "worker_memory" {
   default     = "8 GiB"
 }
 
-variable "node_startup_timeout_seconds" {
-  description = "Seconds a new node has to become active before it is replaced."
+variable "worker_node_startup_timeout_seconds" {
+  description = "Seconds a new worker node has to appear before it is repaved."
   type        = number
   default     = 900
+}
+
+variable "worker_unhealthy_node_timeout_seconds" {
+  description = "Seconds a worker node can stay unready post-join before it is repaved."
+  type        = number
+  default     = 300
+}
+
+variable "worker_max_unhealthy" {
+  description = "Max unhealthy worker nodes allowed before automated replacement stops."
+  type        = string
+  default     = "2"
 }
 
 variable "boot_disk_size" {
