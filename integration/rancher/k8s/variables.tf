@@ -63,6 +63,12 @@ variable "worker_memory" {
   default     = "8 GiB"
 }
 
+variable "node_startup_timeout_seconds" {
+  description = "Seconds a new node has to become active before it is replaced."
+  type        = number
+  default     = 900
+}
+
 variable "boot_disk_size" {
   description = "Boot disk size per node."
   type        = string
