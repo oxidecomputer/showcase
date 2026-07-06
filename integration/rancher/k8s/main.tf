@@ -106,6 +106,7 @@ resource "rancher2_cluster_v2" "oxide" {
       etcd_role                    = true
       worker_role                  = false
       quantity                     = var.control_plane_count
+      node_startup_timeout_seconds = var.node_startup_timeout_seconds
 
       machine_config {
         kind = "OxideConfig"
@@ -120,6 +121,7 @@ resource "rancher2_cluster_v2" "oxide" {
       etcd_role                    = false
       worker_role                  = true
       quantity                     = var.worker_count
+      node_startup_timeout_seconds = var.node_startup_timeout_seconds
 
       machine_labels = {
         "node.longhorn.io/create-default-disk" = "true"
