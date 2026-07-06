@@ -23,8 +23,7 @@ resource "kubernetes_manifest" "oxide_nodedriver" {
       displayName        = "oxide"
       externalId         = ""
       uiUrl              = ""
-      url                = "https://github.com/oxidecomputer/rancher-machine-driver-oxide/releases/download/${var.oxide_nodedriver_version}/docker-machine-driver-oxide"
-      whitelistDomains   = ["github.com"]
+      url                = var.oxide_nodedriver_url
     }
   }
 }
