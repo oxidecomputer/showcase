@@ -39,11 +39,18 @@ Kubernetes API access. All other nodes join this node to form a cluster.
 * `rke-02`: Generic RKE2 node.
 * `rke-03`: Generic RKE2 node.
 
+The three nodes belong to a best-effort Oxide anti-affinity group, preferring
+to run each node on a separate sled when capacity allows.
+
 The node driver is installed into this cluster and used to launch a Kubernetes
 cluster on Oxide running the following layout.
 
 * 3 control plane nodes
 * 3 worker nodes
+
+Each downstream node pool has its own best-effort anti-affinity group,
+preferring separate sleds for same-role replicas without requiring six
+distinct sleds.
 
 Longhorn is then installed in the Kubernetes cluster and a Kubernetes workload
 started that uses a Longhorn volume.

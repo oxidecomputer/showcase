@@ -33,9 +33,9 @@ resource "kubernetes_secret" "oxide" {
     name      = "cc-oxide"
     namespace = "cattle-global-data"
     annotations = {
-      "field.cattle.io/name"      = "oxide"
-      "field.cattle.io/driver"    = "oxide"
-      "field.cattle.io/creatorId" = data.terraform_remote_state.rancher.outputs.rancher_user
+      "field.cattle.io/name"          = "oxide"
+      "provisioning.cattle.io/driver" = "oxide"
+      "field.cattle.io/creatorId"     = data.terraform_remote_state.rancher.outputs.rancher_user
     }
   }
 

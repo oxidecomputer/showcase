@@ -1,5 +1,6 @@
 locals {
   project             = data.terraform_remote_state.rke2.outputs.project
+  project_id          = data.terraform_remote_state.rke2.outputs.project_id
   image_id            = data.terraform_remote_state.rke2.outputs.source_image_id
   vpc                 = data.terraform_remote_state.rke2.outputs.vpc
   subnet              = data.terraform_remote_state.rke2.outputs.subnet
@@ -43,6 +44,20 @@ locals {
   ccm_manifest = "${local.ccm_secret}\n---\n${local.ccm_helmchart}"
 }
 
+resource "oxide_anti_affinity_group" "control_plane" {
+  project_id  = local.project_id
+  name        = "${var.cluster_name}-control-plane"
+  description = "Keep ${var.cluster_name} control-plane nodes on separate sleds."
+  policy      = "allow"
+}
+
+resource "oxide_anti_affinity_group" "worker" {
+  project_id  = local.project_id
+  name        = "${var.cluster_name}-worker"
+  description = "Keep ${var.cluster_name} worker nodes on separate sleds."
+  policy      = "allow"
+}
+
 resource "kubernetes_manifest" "control_plane" {
   manifest = {
     apiVersion = "rke-machine-config.cattle.io/v1"
@@ -51,15 +66,16 @@ resource "kubernetes_manifest" "control_plane" {
       name      = "${var.cluster_name}-control-plane"
       namespace = "fleet-default"
     }
-    project         = local.project
-    bootDiskImageId = local.image_id
-    vcpus           = var.control_plane_cpus
-    memory          = var.control_plane_memory
-    bootDiskSize    = var.boot_disk_size
-    vpc             = local.vpc
-    subnet          = local.subnet
-    sshUser         = var.ssh_user
-    sshPublicKey    = var.ssh_public_keys
+    project           = local.project
+    bootDiskImageId   = local.image_id
+    vcpus             = var.control_plane_cpus
+    memory            = var.control_plane_memory
+    bootDiskSize      = var.boot_disk_size
+    vpc               = local.vpc
+    subnet            = local.subnet
+    sshUser           = var.ssh_user
+    sshPublicKey      = var.ssh_public_keys
+    antiAffinityGroup = [oxide_anti_affinity_group.control_plane.id]
   }
 }
 
@@ -71,17 +87,18 @@ resource "kubernetes_manifest" "worker" {
       name      = "${var.cluster_name}-worker"
       namespace = "fleet-default"
     }
-    project         = local.project
-    bootDiskImageId = local.image_id
-    vcpus           = var.worker_cpus
-    memory          = var.worker_memory
-    bootDiskSize    = var.boot_disk_size
-    vpc             = local.vpc
-    subnet          = local.subnet
-    sshUser         = var.ssh_user
-    sshPublicKey    = var.ssh_public_keys
-    additionalDisk  = ["size=10 GiB,label=longhorn,type=local"]
-    userDataFile    = file("${path.module}/worker-userdata.yaml")
+    project           = local.project
+    bootDiskImageId   = local.image_id
+    vcpus             = var.worker_cpus
+    memory            = var.worker_memory
+    bootDiskSize      = var.boot_disk_size
+    vpc               = local.vpc
+    subnet            = local.subnet
+    sshUser           = var.ssh_user
+    sshPublicKey      = var.ssh_public_keys
+    additionalDisk    = ["size=10 GiB,label=longhorn,type=local"]
+    userDataFile      = file("${path.module}/worker-userdata.yaml")
+    antiAffinityGroup = [oxide_anti_affinity_group.worker.id]
   }
 }
 

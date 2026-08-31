@@ -23,6 +23,10 @@ output "project" {
   value = data.oxide_project.rke2.name
 }
 
+output "project_id" {
+  value = data.oxide_project.rke2.id
+}
+
 output "vpc" {
   value = oxide_vpc.rke2.name
 }

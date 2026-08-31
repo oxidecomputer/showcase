@@ -96,6 +96,13 @@ resource "oxide_vpc_firewall_rules" "rke2" {
   }
 }
 
+resource "oxide_anti_affinity_group" "rke2" {
+  project_id  = data.oxide_project.rke2.id
+  name        = "rke2"
+  description = "Keep Rancher RKE2 nodes on separate sleds."
+  policy      = "allow"
+}
+
 resource "oxide_disk" "boot" {
   count           = var.node_count
   project_id      = data.oxide_project.rke2.id
@@ -106,17 +113,18 @@ resource "oxide_disk" "boot" {
 }
 
 resource "oxide_instance" "node" {
-  count            = var.node_count
-  project_id       = data.oxide_project.rke2.id
-  name             = local.node_names[count.index]
-  hostname         = local.node_names[count.index]
-  description      = "RKE2 cluster on SUSE Linux Micro."
-  ncpus            = var.cpus
-  memory           = var.memory
-  start_on_create  = true
-  ssh_public_keys  = concat([oxide_ssh_key.rke2.id], var.ssh_public_keys)
-  boot_disk_id     = oxide_disk.boot[count.index].id
-  disk_attachments = [oxide_disk.boot[count.index].id]
+  count                = var.node_count
+  project_id           = data.oxide_project.rke2.id
+  name                 = local.node_names[count.index]
+  hostname             = local.node_names[count.index]
+  description          = "RKE2 cluster on SUSE Linux Micro."
+  ncpus                = var.cpus
+  memory               = var.memory
+  start_on_create      = true
+  ssh_public_keys      = concat([oxide_ssh_key.rke2.id], var.ssh_public_keys)
+  boot_disk_id         = oxide_disk.boot[count.index].id
+  disk_attachments     = [oxide_disk.boot[count.index].id]
+  anti_affinity_groups = [oxide_anti_affinity_group.rke2.id]
 
   network_interfaces = [{
     name        = "net0"
