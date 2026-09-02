@@ -1,7 +1,8 @@
 = SUSE Linux Micro Packer Configuration
 
 This Packer configuration builds a SUSE Linux Micro image with `open-iscsi`
-baked in, so downstream RKE2 nodes can run Longhorn.
+baked in and the XFS kernel module configured to load at boot, so downstream
+RKE2 nodes can run Longhorn and mount XFS filesystems.
 
 == Usage
 

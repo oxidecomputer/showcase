@@ -71,6 +71,7 @@ build {
       "test -x /usr/sbin/iscsiadm",
       "sudo systemctl enable iscsid.socket iscsid.service",
       "echo iscsi_tcp | sudo tee /etc/modules-load.d/iscsi.conf",
+      "echo xfs | sudo tee /etc/modules-load.d/xfs.conf",
     ]
   }
 
