@@ -1,10 +1,10 @@
 terraform {
-  required_version = ">= 1.9"
+  required_version = ">= 1.11"
 
   required_providers {
     oxide = {
       source  = "oxidecomputer/oxide"
-      version = ">= 0.20.1"
+      version = "~> 0.0"
     }
     random = {
       source  = "hashicorp/random"

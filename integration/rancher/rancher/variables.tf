@@ -7,7 +7,7 @@ variable "rancher_dns_name" {
 variable "rancher_version" {
   description = "Rancher Helm chart version."
   type        = string
-  default     = "2.14.2"
+  default     = "2.15.1"
 }
 
 variable "rancher_replicas" {
@@ -30,5 +30,5 @@ variable "rancher_password" {
 variable "cert_manager_version" {
   description = "cert-manager Helm chart version."
   type        = string
-  default     = "v1.17.2"
+  default     = "v1.21.1"
 }

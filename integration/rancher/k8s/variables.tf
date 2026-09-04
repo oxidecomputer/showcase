@@ -7,7 +7,7 @@ variable "cluster_name" {
 variable "kubernetes_version" {
   description = "RKE2 version for the cluster. Must be offered by this Rancher and within Longhorn's supported range."
   type        = string
-  default     = "v1.35.6+rke2r1"
+  default     = "v1.36.2+rke2r1"
 }
 
 variable "ccm_oxide_profile" {
@@ -24,7 +24,7 @@ variable "ccm_oxide_credentials_file" {
 variable "ccm_version" {
   description = "Version of the oxide-cloud-controller-manager Helm chart to install during cluster bootstrap."
   type        = string
-  default     = "0.7.1"
+  default     = "0.8.0"
 }
 
 variable "control_plane_count" {

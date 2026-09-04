@@ -46,13 +46,13 @@ variable "subnet" {
 variable "vcpus" {
   description = "vCPUs for the build instance."
   type        = number
-  default     = 2
+  default     = 4
 }
 
 variable "memory" {
   description = "Memory for the throwaway build instance, in bytes."
   type        = number
-  default     = 4294967296
+  default     = 17179869184
 }
 
 variable "boot_disk_size" {
