@@ -5,6 +5,7 @@ provider "registry.terraform.io/hashicorp/helm" {
   version     = "2.17.0"
   constraints = "~> 2.17"
   hashes = [
+    "h1:K5FEjxvDnxb1JF1kG1xr8J3pNGxoaR3Z0IBG9Csm/Is=",
     "h1:kQMkcPVvHOguOqnxoEU2sm1ND9vCHiT8TvZ2x6v/Rsw=",
     "zh:06fb4e9932f0afc1904d2279e6e99353c2ddac0d765305ce90519af410706bd4",
     "zh:104eccfc781fc868da3c7fec4385ad14ed183eb985c96331a1a937ac79c2d1a7",
@@ -25,6 +26,7 @@ provider "registry.terraform.io/hashicorp/kubernetes" {
   version     = "2.38.0"
   constraints = "~> 2.30"
   hashes = [
+    "h1:5CkveFo5ynsLdzKk+Kv+r7+U9rMrNjfZPT3a0N/fhgE=",
     "h1:soK8Lt0SZ6dB+HsypFRDzuX/npqlMU6M0fvyaR1yW0k=",
     "zh:0af928d776eb269b192dc0ea0f8a3f0f5ec117224cd644bdacdc682300f84ba0",
     "zh:1be998e67206f7cfc4ffe77c01a09ac91ce725de0abaec9030b22c0a832af44f",
@@ -45,6 +47,7 @@ provider "registry.terraform.io/rancher/rancher2" {
   version     = "14.1.1"
   constraints = "~> 14.1"
   hashes = [
+    "h1:XguC/YWN5PuuX+oQ9U7HZdrpLZ/z32XFTmWcTZTO/AY=",
     "h1:rbEfIRw5srYsQs/PUY4Z6ywNEXf0hlfRdEBIj58Es74=",
     "zh:11c4c34ba996b633d116e83f48b0baecaa1e0cbf50562abdfd9424cd6f6141a4",
     "zh:205a3a4b5f078b2eeea06f4a13ab15bcf34864460f789568d384a03e47f0a009",

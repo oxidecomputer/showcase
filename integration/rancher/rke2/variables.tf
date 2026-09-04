@@ -30,13 +30,13 @@ variable "rke2_token" {
 variable "rke2_version" {
   description = "RKE2 version to install (e.g., v1.32.13+rke2r1). Takes precedence over rke2_channel when set. Pin this to a version on Rancher's support matrix."
   type        = string
-  default     = "v1.32.13+rke2r1"
+  default     = "v1.36.4+rke2r1 "
 }
 
 variable "rke2_channel" {
   description = "RKE2 release channel (e.g., v1.32) to install from when rke2_version is empty."
   type        = string
-  default     = "v1.32"
+  default     = "v1.36"
 }
 
 variable "ephemeral_ip_pool_id" {
