@@ -54,6 +54,13 @@ resource "helm_release" "rancher" {
     value = "rancher"
   }
 
+  # Give the destroy time to complete to, hopefully, prevent `job
+  # rancher-post-delete failed: BackoffLimitExceeded` errors.
+  set {
+    name  = "postDelete.timeout"
+    value = "600"
+  }
+
   wait    = true
   timeout = 900
 
