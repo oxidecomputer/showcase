@@ -51,3 +51,6 @@ provider "rancher2" {
 provider "kubernetes" {
   config_path = data.terraform_remote_state.rke2.outputs.kubeconfig
 }
+
+# Configured via environment variables.
+provider "oxide" {}
