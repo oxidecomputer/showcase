@@ -54,11 +54,12 @@ resource "helm_release" "rancher" {
     value = "rancher"
   }
 
-  # Give the destroy time to complete to, hopefully, prevent `job
-  # rancher-post-delete failed: BackoffLimitExceeded` errors.
+  # Rancher installs its system charts asynchronously after this release is
+  # ready. Do not fail teardown if one of those nested releases is still being
+  # reconciled.
   set {
-    name  = "postDelete.timeout"
-    value = "600"
+    name  = "postDelete.ignoreTimeoutError"
+    value = "true"
   }
 
   wait    = true
