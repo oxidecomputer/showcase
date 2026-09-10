@@ -1,0 +1,239 @@
+#!/bin/sh
+set -eu
+
+# spawn-runner — Claude Code self-hosted orchestrator hook
+#
+# Invoked by `claude self-hosted-runner orchestrator` to spawn one Oxide
+# instance that registers itself with Claude, runs a single Claude session, and
+# powers off the instance. A separate `claude-self-hosted-reaper` process is
+# responsible for deleting the instance and its boot disk.
+
+: "${PROJECT:?spawn-runner: PROJECT unset}"
+: "${IMAGE_ID:?spawn-runner: IMAGE_ID unset}"
+VPC_NAME="${VPC_NAME:-default}"
+SUBNET_NAME="${SUBNET_NAME:-default}"
+SSH_KEY_ID="${SSH_KEY_ID:-}"
+IP_POOL="${IP_POOL:-}"
+NCPUS="${NCPUS:-2}"
+MEMORY_GIB="${MEMORY_GIB:-8}"
+DISK_GIB="${DISK_GIB:-32}"
+
+if [ -z "${OXIDE_PROFILE:-}" ]; then
+  : "${OXIDE_HOST:?spawn-runner: OXIDE_PROFILE or OXIDE_HOST unset}"
+  : "${OXIDE_TOKEN:?spawn-runner: OXIDE_PROFILE or OXIDE_TOKEN unset}"
+fi
+
+MEMORY_BYTES="$((MEMORY_GIB * 1024 * 1024 * 1024))"
+DISK_BYTES="$((DISK_GIB * 1024 * 1024 * 1024))"
+
+MAX_RUNNERS="${MAX_RUNNERS:-10}"
+: "${CLAUDE_VERSION:?spawn-runner: CLAUDE_VERSION unset}"
+
+RELEASE_IDLE_MIN="${RELEASE_IDLE_MIN:-30}"
+KILL_SESSION_AFTER_MIN="${KILL_SESSION_AFTER_MIN:-480}"
+EXIT_IF_UNUSED_MIN="${EXIT_IF_UNUSED_MIN:-10}"
+
+log()  { printf '%s\n' "$*" >&2; }
+fail_retry() { log "$*"; exit 1; }
+fail_hard()  { log "$*"; exit 2; }
+ox() {
+  if [ -n "${OXIDE_PROFILE:-}" ]; then
+    oxide --profile "$OXIDE_PROFILE" "$@"
+  else
+    oxide "$@"
+  fi
+}
+
+for bin in oxide jq base64; do
+  command -v "$bin" >/dev/null 2>&1 || fail_hard "spawn-runner: $bin not on PATH"
+done
+
+: "${CLAUDE_RUNNER_ORDER_ID:?spawn-runner: CLAUDE_RUNNER_ORDER_ID unset}"
+: "${CLAUDE_RUNNER_WORK_ORDER_FILE:?spawn-runner: CLAUDE_RUNNER_WORK_ORDER_FILE unset}"
+
+# Generate the Oxide instance name.
+NAME="claude-$(printf '%s' "$CLAUDE_RUNNER_ORDER_ID" \
+  | tr '[:upper:]' '[:lower:]' | tr -c 'a-z0-9-' '-' | cut -c1-56)"
+NAME="$(printf '%s' "$NAME" | sed 's/-*$//')"
+case "$NAME" in
+  claude-) fail_hard "spawn-runner: order id produced an empty name" ;;
+esac
+
+# The instance name is derived from the order ID, so an existing instance means
+# this order was already submitted.
+if ox instance view --project "$PROJECT" --instance "$NAME" >/dev/null 2>&1; then
+  log "spawn-runner: $NAME already exists; treating as already submitted"
+  exit 0
+fi
+
+# Enforce MAX_RUNNERS.
+live_json="$(ox instance list --project "$PROJECT" 2>/dev/null)" \
+  || fail_retry "spawn-runner: could not list instances (transient API failure?)"
+
+live="$(printf '%s' "$live_json" | jq '[ .[]
+  | select(.name | startswith("claude-"))
+  | select(.run_state | IN("creating","starting","running","rebooting","stopping","migrating"))
+] | length')"
+
+if [ "$live" -ge "$MAX_RUNNERS" ]; then
+  fail_retry "spawn-runner: at fleet cap ($live/$MAX_RUNNERS live runners); backing off"
+fi
+
+# Read the work order to get the runner token.
+WORK_ORDER="$(cat "$CLAUDE_RUNNER_WORK_ORDER_FILE")" \
+  || fail_retry "spawn-runner: could not read work order file"
+[ -n "$WORK_ORDER" ] || fail_retry "spawn-runner: work order file was empty"
+
+TMPDIR_RUN="$(umask 077; mktemp -d)"
+trap 'rm -rf "$TMPDIR_RUN"' EXIT INT TERM
+
+cat > "$TMPDIR_RUN/user-data" <<CLOUDCFG
+#cloud-config
+users:
+  - default
+  - name: claude-self-hosted
+    system: true
+    homedir: /var/lib/claude-self-hosted
+    shell: /usr/sbin/nologin
+    lock_passwd: true
+
+packages:
+  - ca-certificates
+  - curl
+  - git
+
+write_files:
+  - path: /run/claude/work-order.env
+    permissions: '0600'
+    owner: 'root:root'
+    content: |
+      SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET=${WORK_ORDER}
+
+  - path: /etc/claude-self-hosted/hooks/post-session
+    permissions: '0755'
+    owner: 'root:root'
+    content: |
+      #!/bin/sh
+      # Session-end breadcrumb. The orchestrator gets no session-ended event,
+      # so this is the only in-guest record of why the session ended.
+      logger -t claude-post-session \\
+        "session=\${CLAUDE_RUNNER_SESSION_ID:-none} reason=\${CLAUDE_RUNNER_EXIT_REASON:-unknown}"
+      exit 0
+
+  - path: /etc/systemd/system/claude-runner.service
+    permissions: '0644'
+    owner: 'root:root'
+    content: |
+      [Unit]
+      Description=Claude Code self-hosted runner (single session, then poweroff)
+      After=network-online.target
+      Wants=network-online.target
+
+      SuccessAction=poweroff
+      FailureAction=poweroff
+
+      [Service]
+      Type=simple
+      Restart=no
+      User=claude-self-hosted
+      Group=claude-self-hosted
+      StateDirectory=claude-self-hosted
+      LogsDirectory=claude-self-hosted
+      EnvironmentFile=-/run/claude/work-order.env
+      ExecStart=/usr/local/bin/claude self-hosted-runner \\
+        --capacity 1 \\
+        --base-dir /var/lib/claude-self-hosted \\
+        --hooks-dir /etc/claude-self-hosted/hooks \\
+        --use-anthropic-git-proxy \\
+        --configure-git \\
+        --exit-if-unused-min ${EXIT_IF_UNUSED_MIN} \\
+        --release-idle-session-min ${RELEASE_IDLE_MIN} \\
+        --kill-session-after-min ${KILL_SESSION_AFTER_MIN} \\
+        --log-file /var/log/claude-self-hosted/runner.log
+
+      # Drop the work order once systemd has read it.
+      ExecStartPost=-+/usr/bin/rm -f /run/claude/work-order.env
+
+      TimeoutStopSec=180
+      ExecStopPost=-+/usr/bin/systemctl --no-block poweroff
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - [ sh, -c, "install -d -m 0755 /etc/claude-self-hosted/hooks" ]
+  - [ sh, -c, "curl -fsSL --retry 5 --retry-delay 2 https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude -o /usr/local/bin/claude && chmod 0755 /usr/local/bin/claude" ]
+  - [ sh, -c, "rm -f /var/lib/cloud/instances/*/user-data.txt* /var/lib/cloud/instances/*/cloud-config.txt || true" ]
+  - [ systemctl, daemon-reload ]
+  - [ systemctl, start, --no-block, claude-runner.service ]
+CLOUDCFG
+
+USER_DATA_B64="$(base64 -w0 < "$TMPDIR_RUN/user-data")"
+
+if [ "$(wc -c < "$TMPDIR_RUN/user-data")" -gt 32768 ]; then
+  fail_hard "spawn-runner: user-data exceeds Oxide's 32 KiB limit"
+fi
+
+jq -n \
+  --arg name        "$NAME" \
+  --arg hostname    "$NAME" \
+  --arg description "Claude Code ephemeral runner (order ${CLAUDE_RUNNER_ORDER_ID})." \
+  --argjson ncpus   "$NCPUS" \
+  --argjson memory  "$MEMORY_BYTES" \
+  --argjson disksz  "$DISK_BYTES" \
+  --arg image_id    "$IMAGE_ID" \
+  --arg ssh_key_id  "$SSH_KEY_ID" \
+  --arg vpc         "$VPC_NAME" \
+  --arg subnet      "$SUBNET_NAME" \
+  --arg ip_pool     "$IP_POOL" \
+  --arg user_data   "$USER_DATA_B64" \
+  '{
+     name: $name,
+     description: $description,
+     hostname: $hostname,
+     ncpus: $ncpus,
+     memory: $memory,
+     start: true,
+     auto_restart_policy: "never",
+     boot_disk: {
+       type: "create",
+       name: $name,
+       description: $description,
+       size: $disksz,
+       disk_backend: {
+         type: "distributed",
+         disk_source: { type: "image", image_id: $image_id }
+       }
+     },
+     network_interfaces: {
+       type: "create",
+       params: [ {
+         name: "net0",
+         description: $description,
+         vpc_name: $vpc,
+         subnet_name: $subnet
+       } ]
+     },
+     external_ips: (if $ip_pool == "" then [] else [ {
+       type: "ephemeral",
+       pool_selector: { type: "explicit", pool: $ip_pool }
+     } ] end),
+     ssh_public_keys: (if $ssh_key_id == "" then [] else [ $ssh_key_id ] end),
+     user_data: $user_data
+   }' > "$TMPDIR_RUN/body.json"
+
+# Create the Oxide instance.
+if ! err="$(ox instance create --project "$PROJECT" \
+             --json-body "$TMPDIR_RUN/body.json" 2>&1 >/dev/null)"; then
+  case "$err" in
+    *ObjectAlreadyExists*|*already\ exists*)
+      log "spawn-runner: $NAME already exists; treating as already submitted"
+      exit 0 ;;
+    *)
+      # Retryable: quota exhaustion, transient API error, capacity pressure.
+      fail_retry "spawn-runner: instance create failed for $NAME: $err" ;;
+  esac
+fi
+
+log "spawn-runner: submitted $NAME (${live}/${MAX_RUNNERS} were live) for session ${CLAUDE_RUNNER_SESSION_ID:-<pre-warm>}"
+exit 0

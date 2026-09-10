@@ -1,0 +1,11 @@
+[Unit]
+Description=Claude Self-hosted Reaper Timer
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=3min
+AccuracySec=30s
+Unit=claude-self-hosted-reaper.service
+
+[Install]
+WantedBy=timers.target

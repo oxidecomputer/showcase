@@ -1,0 +1,82 @@
+#!/bin/sh
+set -eu
+
+: "${PROJECT:?claude-self-hosted-reaper: PROJECT unset}"
+MAX_AGE_HOURS="${MAX_AGE_HOURS:-12}"
+NAME_PREFIX="${NAME_PREFIX:-claude-}"
+DRY_RUN="${DRY_RUN:-0}"
+
+if [ -z "${OXIDE_PROFILE:-}" ]; then
+  : "${OXIDE_HOST:?claude-self-hosted-reaper: OXIDE_PROFILE or OXIDE_HOST unset}"
+  : "${OXIDE_TOKEN:?claude-self-hosted-reaper: OXIDE_PROFILE or OXIDE_TOKEN unset}"
+fi
+
+log() { printf '%s\n' "$*" >&2; }
+ox() {
+  if [ -n "${OXIDE_PROFILE:-}" ]; then
+    oxide --profile "$OXIDE_PROFILE" "$@"
+  else
+    oxide "$@"
+  fi
+}
+run() {
+  if [ "$DRY_RUN" = "1" ]; then log "DRY_RUN: $*"; return 0; fi
+  "$@"
+}
+
+for bin in oxide jq; do
+  command -v "$bin" >/dev/null 2>&1 \
+    || { log "claude-self-hosted-reaper: $bin not on PATH"; exit 2; }
+done
+
+instances="$(ox instance list --project "$PROJECT")" || {
+  log "claude-self-hosted-reaper: instance list failed"; exit 1; }
+
+cutoff="$(( $(date -u +%s) - MAX_AGE_HOURS * 3600 ))"
+
+# Stop instances that have exceeded MAX_AGE_HOURS.
+printf '%s' "$instances" | jq -r --arg p "$NAME_PREFIX" --argjson cutoff "$cutoff" '
+  .[]
+  | select(.name | startswith($p))
+  | select(.run_state | IN("running","starting","rebooting"))
+  # Oxide timestamps carry fractional seconds, which fromdateiso8601 rejects.
+  | select((.time_created | sub("\\.[0-9]+Z$"; "Z") | fromdateiso8601) < $cutoff)
+  | .name' | while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  log "claude-self-hosted-reaper: $name exceeded ${MAX_AGE_HOURS}h; stopping"
+  run ox instance stop --project "$PROJECT" --instance "$name" >/dev/null 2>&1 \
+    || log "claude-self-hosted-reaper: stop failed for $name (will retry)"
+done
+
+# Delete stopped instances.
+printf '%s' "$instances" | jq -r --arg p "$NAME_PREFIX" '
+  .[]
+  | select(.name | startswith($p))
+  | select(.run_state == "stopped")
+  | .name' | while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  log "claude-self-hosted-reaper: deleting stopped instance $name"
+  if run ox instance delete --project "$PROJECT" --instance "$name" >/dev/null 2>&1; then
+    :
+  else
+    log "claude-self-hosted-reaper: instance delete failed for $name (will retry)"
+    continue
+  fi
+done
+
+# Delete detached disks.
+disks="$(ox disk list --project "$PROJECT")" || {
+  log "claude-self-hosted-reaper: disk list failed"; exit 1; }
+
+printf '%s' "$disks" | jq -r --arg p "$NAME_PREFIX" '
+  .[]
+  | select(.name | startswith($p))
+  | select(.state.state == "detached")
+  | .name' | while IFS= read -r name; do
+  [ -n "$name" ] || continue
+  log "claude-self-hosted-reaper: deleting detached disk $name"
+  run ox disk delete --project "$PROJECT" --disk "$name" >/dev/null 2>&1 \
+    || log "claude-self-hosted-reaper: disk delete failed for $name (will retry)"
+done
+
+exit 0
