@@ -1,0 +1,18 @@
+[Unit]
+Description=Claude Self-hosted Reaper
+After=network-online.target
+
+[Service]
+Type=oneshot
+User=claude-self-hosted
+Group=claude-self-hosted
+
+EnvironmentFile=/etc/claude-self-hosted/config.env
+Environment=MAX_AGE_HOURS=12
+
+ExecStart=/usr/local/bin/claude-self-hosted-reaper
+
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true

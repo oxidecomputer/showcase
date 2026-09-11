@@ -1,0 +1,10 @@
+project           = "my-project"
+source_image_name = "ubuntu-26-04-20260720"
+
+# Uncomment if the source image belongs to a project rather than the silo.
+# source_image_project = "my-project"
+
+# Packer must be able to reach the build instance over SSH.
+# ip_pool = "my-ip-pool"
+# vpc     = "default"
+# subnet  = "default"

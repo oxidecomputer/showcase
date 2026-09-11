@@ -1,0 +1,193 @@
+= Claude Code Self-hosted Environments
+
+This showcase creates a Claude Code
+link:https://code.claude.com/docs/en/self-hosted-environments[self-hosted
+environment] and configures `claude self-hosted-runner orchestrator` to launch
+Oxide instances as ephemeral Claude Code runners in this environment.
+
+This allows Oxide customers to control where and how their Claude Code agents
+run in their enterprise.
+
+== Architecture
+
+[source,mermaid]
+----
+flowchart LR
+    A["Anthropic self-hosted environment"]
+    G["Git host"]
+
+    subgraph Oxide
+        O["Orchestrator instance"]
+        R["Ephemeral runner instance"]
+    end
+
+    O <-->|Polls for work orders| A
+    O -->|Creates via Oxide API| R
+    R <-->|Runs session and inference| A
+    R <-->|clone, push| G
+    O -.->|Reaps after shutdown| R
+----
+
+Both the orchestrator and ephemeral Claude Code runners run as Oxide instances.
+The orchestrator runs systemd services to provision and reap runners. The
+runners install Claude Code using user-data and connect to the self-hosted
+environment using a work order.
+
+The Claude self-hosted environment key and Oxide credentials never leave the
+orchestrator instance.
+
+For simplicity, both the orchestrator and runner instances run in the same Oxide
+project, VPC, and subnet, though it's not required.
+
+== Requirements
+
+* A Team or Enterprise Claude plan and organization Owner access.
+* An Oxide project, VPC, subnet, and base Ubuntu 26.04 image.
+* Oxide API credentials.
+* `packer` to build the orchestrator image.
+* `oxide`, `jq`, and `base64` to launch the orchestrator instance.
+
+== Usage
+
+=== 1. Create the Claude self-hosted environment
+
+. As a Claude organization Owner, open
+link:https://claude.ai/admin-settings/cloud-environments[Cloud environments].
+
+.. Enable self-hosted environments.
+
+.. Create a self-hosted environment.
+
+.. Copy the environment key (e.g., `sk-ant-cc-abc123`).
+
+The orchestrator uses this environment key to connect to the self-hosted
+environment and listen for runner requests.
+
+=== 2. Create Oxide resources
+
+. Create an Oxide project named `claude-self-hosted`.
+
+. Upload an Ubuntu 26.04 image to the project. This will be the base image for
+the orchestrator image and the image used to launch runners.
+
+=== 3. Build the orchestrator image
+
+. Export the Oxide credentials for Packer using one of these methods.
++
+[source,shell]
+----
+export OXIDE_PROFILE=my-profile
+----
++
+[source,shell]
+----
+export OXIDE_HOST=https://oxide.sys.example.com
+export OXIDE_TOKEN=oxide-token-abc123
+----
+
+. Create the Packer variables for the build.
++
+[source,shell]
+----
+cp ./orchestrator/packer/ubuntu.auto.pkrvars.hcl.example ./orchestrator/packer/ubuntu.auto.pkrvars.hcl
+----
++
+.orchestrator/packer/ubuntu.auto.pkrvars.hcl
+[source,hcl]
+----
+project           = "claude-self-hosted"
+source_image_name = "ubuntu-26-04-20260720"
+
+source_image_project = "claude-self-hosted"
+
+# Packer must be able to reach the build instance over SSH.
+# ip_pool = "my-ip-pool"
+# vpc     = "default"
+# subnet  = "default"
+----
+
+. Build the orchestrator image and record the image ID from the output.
++
+[source,shell]
+----
+packer init ./orchestrator/packer
+packer build ./orchestrator/packer
+----
+
+=== 4. Launch the orchestrator instance
+
+. Create the orchestrator user-data.
++
+[source,shell]
+----
+cp ./orchestrator/packer/user-data.yaml.example ./orchestrator/packer/user-data.yaml
+----
++
+.orchestrator/packer/user-data.yaml
+[source,yaml]
+----
+#cloud-config
+write_files:
+  # This configuration is used to launch the runner instances.
+  - path: /etc/claude-self-hosted/config.env
+    permissions: '0640'
+    owner: root:claude-self-hosted
+    content: |
+      OXIDE_HOST=https://oxide.sys.example.com
+      OXIDE_TOKEN=oxide-token-abc123
+      PROJECT=claude-self-hosted
+      IMAGE_ID=c499ce5e-4110-44d1-8ff9-62dfd3524180
+      VPC_NAME=default
+      SUBNET_NAME=default
+      NCPUS=2
+      MEMORY_GIB=8
+      DISK_GIB=32
+      SSH_KEY_ID=
+      IP_POOL=
+      MAX_RUNNERS=10
+      CLAUDE_VERSION=2.1.267
+      EXIT_IF_UNUSED_MIN=10
+      RELEASE_IDLE_MIN=30
+      KILL_SESSION_AFTER_MIN=480
+
+  - path: /etc/claude-self-hosted/environment-secret
+    permissions: '0640'
+    owner: root:claude-self-hosted
+    content: |
+      sk-ant-cc-abc123
+
+runcmd:
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, claude-self-hosted-orchestrator.service]
+  - [systemctl, enable, --now, claude-self-hosted-reaper.timer]
+  - [sh, -c, 'rm -f /var/lib/cloud/instances/*/user-data.txt* /var/lib/cloud/instances/*/cloud-config.txt']
+----
+
+. Launch the orchestrator using the image ID from the Packer output.
++
+[source,shell]
+----
+export PROJECT=claude-self-hosted
+
+# Optional: to connect to the orchestrator instance for debugging
+# export SSH_KEY_ID=
+# export IP_POOL=
+
+./orchestrator/packer/launch.sh ab9fb677-ef0c-400f-a737-a0bc9e2d601c ./orchestrator/packer/user-data.yaml
+----
+
+=== 5. Create a Claude Code session
+
+. Open link:https://claude.ai/code[Claude Code on the web].
+
+. Start a session and select the self-hosted environment from step 1.
+
+. Wait for the runner instance to start.
++
+[source,shell]
+----
+watch -n5 'oxide instance list --project claude-self-hosted'
+----
+
+When the session ends, the runner instances powers off and the reaper deletes it
+and its boot disk.

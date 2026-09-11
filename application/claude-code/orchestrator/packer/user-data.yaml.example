@@ -1,0 +1,35 @@
+#cloud-config
+write_files:
+  # This configuration is used to launch the runner instances.
+  - path: /etc/claude-self-hosted/config.env
+    permissions: '0640'
+    owner: root:claude-self-hosted
+    content: |
+      OXIDE_HOST=https://oxide.sys.example.com
+      OXIDE_TOKEN=oxide-token-abc123
+      PROJECT=my-project
+      IMAGE_ID=00000000-0000-0000-0000-000000000000
+      VPC_NAME=default
+      SUBNET_NAME=default
+      NCPUS=2
+      MEMORY_GIB=8
+      DISK_GIB=32
+      SSH_KEY_ID=
+      IP_POOL=
+      MAX_RUNNERS=10
+      CLAUDE_VERSION=2.1.267
+      EXIT_IF_UNUSED_MIN=10
+      RELEASE_IDLE_MIN=30
+      KILL_SESSION_AFTER_MIN=480
+
+  - path: /etc/claude-self-hosted/environment-secret
+    permissions: '0640'
+    owner: root:claude-self-hosted
+    content: |
+      sk-ant-cc-abc123
+
+runcmd:
+  - [systemctl, daemon-reload]
+  - [systemctl, enable, --now, claude-self-hosted-orchestrator.service]
+  - [systemctl, enable, --now, claude-self-hosted-reaper.timer]
+  - [sh, -c, 'rm -f /var/lib/cloud/instances/*/user-data.txt* /var/lib/cloud/instances/*/cloud-config.txt']

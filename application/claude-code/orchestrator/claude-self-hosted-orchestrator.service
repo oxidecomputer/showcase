@@ -1,0 +1,30 @@
+[Unit]
+Description=Claude Self-hosted Orchestrator
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=claude-self-hosted
+Group=claude-self-hosted
+
+EnvironmentFile=/etc/claude-self-hosted/config.env
+
+ExecStart=/usr/local/bin/claude self-hosted-runner orchestrator \
+  --environment-secret-file /etc/claude-self-hosted/environment-secret \
+  --hooks-dir /etc/claude-self-hosted/hooks \
+  --hook-concurrency 1 \
+  --hook-timeout 60 \
+  --expected-spawn-seconds 300 \
+  --health-port 8080
+
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ReadOnlyPaths=/etc/claude-self-hosted
+
+[Install]
+WantedBy=multi-user.target
