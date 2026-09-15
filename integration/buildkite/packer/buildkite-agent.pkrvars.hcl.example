@@ -1,0 +1,13 @@
+source_image_name = "ubuntu-26-04"
+# Uncomment when using a project image rather than a silo image.
+# source_image_project = "base-images"
+
+project       = "ci"
+artifact_name = "buildkite-agent"
+
+# Override when the temporary builder cannot use the defaults.
+# vpc       = "default"
+# subnet    = "default"
+# ip_pool   = "default"
+# cpus      = 2
+# memory    = 8 * 1024 * 1024 * 1024
