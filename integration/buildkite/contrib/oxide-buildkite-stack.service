@@ -1,0 +1,20 @@
+[Unit]
+Description=Oxide Buildkite Stack Controller
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=oxide-buildkite-stack
+Group=oxide-buildkite-stack
+EnvironmentFile=/etc/oxide-buildkite-stack/environment
+ExecStart=/usr/local/bin/oxide-buildkite-stack -config /etc/oxide-buildkite-stack/config.yaml
+Restart=on-failure
+RestartSec=5s
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

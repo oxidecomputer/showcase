@@ -1,0 +1,105 @@
+= Oxide Buildkite Stack
+
+The Oxide Buildkite stack is a controller that provisions per-job, ephemeral
+Oxide instances as agents for a self-hosted Buildkite queue. It use Buildkite's
+Stacks API to poll for jobs and, when a job arrives, provisions an Oxide
+instance to run that specific job, waits for it to complete, and then deletes
+the instance.
+
+== Architecture
+
+[source,mermaid]
+----
+flowchart LR
+    subgraph Buildkite
+        Q["Self-hosted queue"]
+        S["Stacks API"]
+        J["Scheduled job"]
+    end
+
+    subgraph Oxide
+        C["Oxide Buildkite stack controller"]
+        R["Ephemeral Buildkite agent instance"]
+    end
+
+    C <-->|Register stack, poll, reserve, and observe jobs| S
+    S --- Q
+    Q --- J
+    C -->|Provision for reserved job| R
+    R -->|Acquire and run job| J
+    C -.->|Delete instance and boot disk after completion| R
+----
+
+=== How it works
+
+The `./cmd/oxide-buildkite-stack` program is responsible for the following.
+
+* Read `config.yaml`.
+* Register a Buildkite stack and continously poll for scheduled jobs.
+* Respect agent query rules and queue pausing.
+* When a job arrives, provision an Oxide instance for it.
+* Run `buildkite-agent start --acquire-job=<id> --disconnect-after-job` on the
+launched instance via user-data.
+* Wait for the job to complete and delete the instance and its boot disk.
+
+The program does not store state. Oxide resources are named with a stable prefix
+and the Buildkite job UUID which allows the program to rebuild state on each
+reconciliation.
+
+=== Runner image
+
+The included link:packer[Packer configuration] builds an Oxide image that has
+`buildkite-agent` installed and available on `PATH`, ready for use with this
+program.
+
+== Usage
+
+. Build the runner image using the link:packer[Packer configuration].
+
+.. Create the variables file.
++
+[source,shell]
+----
+cp ./packer/buildkite-agent.pkrvars.hcl.example ./packer/buildkite-agent.pkrvars.hcl
+----
+
+..  Export Oxide credentials.
++
+[source,shell]
+----
+export OXIDE_HOST=https://oxide.sys.example.com
+export OXIDE_TOKEN=oxide-token-abc123
+----
+
+.. Build the image.
++
+[source,shell]
+----
+packer build -var-file packer/buildkite-agent.pkrvars.hcl packer
+----
+
+. Run the Oxide Buildkite stack program.
+
+.. Create the configuration.
++
+[source,shell]
+----
+cp ./config.example.yaml ./config.yaml
+----
+
+.. Run the program.
++
+[source,shell]
+----
+go run ./cmd/oxide-buildkite-stack -config config.yaml
+----
+
+== Development
+
+Enter the Nix shell and run all checks.
+
+[source,console]
+----
+nix develop
+make check
+----

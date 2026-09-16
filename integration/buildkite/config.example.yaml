@@ -1,0 +1,25 @@
+buildkite:
+  # Stable within an Oxide project. It identifies both the Buildkite stack and
+  # the Oxide resources this controller owns.
+  stack_key: oxide-production
+  queue_key: oxide
+  token_env: BUILDKITE_AGENT_TOKEN
+  tags:
+    - os=linux
+    - arch=amd64
+
+oxide:
+  host_env: OXIDE_HOST
+  token_env: OXIDE_TOKEN
+  project: ci
+  image: buildkite-agent
+  vpc: default
+  subnet: default
+  cpus: 4
+  memory_gib: 16
+  # Zero means the image's rounded-up size.
+  boot_disk_gib: 0
+
+# Must remain at or below 30s to keep the Buildkite stack connected.
+poll_interval: 10s
+max_jobs: 10

@@ -1,0 +1,4 @@
+/oxide-buildkite-stack
+/config.yaml
+/packer/*.pkrvars.hcl
+/packer/packer_crash.log
