@@ -1,0 +1,7 @@
+= Cloud Controller Manager
+
+Cloud Controller Manager is an officially maintained Oxide integration. See the
+link:https://docs.oxide.computer/guides/integrations/cloud-controller-manager[integration guide]
+for more information and
+link:https://github.com/oxidecomputer/oxide-cloud-controller-manager[GitHub]
+for source code.

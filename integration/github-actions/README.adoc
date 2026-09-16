@@ -1,0 +1,7 @@
+= GitHub Actions
+
+GitHub Actions is in public preview. See the
+link:https://docs.oxide.computer/guides/integrations/github-actions[integration
+guide] for more information and
+link:https://github.com/oxidecomputer/oxide-gha-runner-scale-set-controller[GitHub]
+for source code.

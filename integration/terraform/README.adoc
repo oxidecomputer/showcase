@@ -1,0 +1,7 @@
+= Terraform
+
+Terraform is an officially maintained Oxide integration. See the
+link:https://docs.oxide.computer/guides/integrations/terraform[integration guide]
+for more information and
+link:https://github.com/oxidecomputer/terraform-provider-oxide[GitHub]
+for source code.

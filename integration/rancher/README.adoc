@@ -1,5 +1,14 @@
 = Rancher
 
+Rancher is an officially maintained Oxide integration. See the
+link:https://docs.oxide.computer/guides/integrations/rancher[integration
+guide] for more information and
+link:https://github.com/oxidecomputer/rancher-machine-driver-oxide[GitHub] for
+source code.
+
+The documentation here covers a more in-depth Rancher setup for use with
+end-to-end tests.
+
 The Oxide Rancher node driver lets Rancher provision Oxide instances and use
 them to launch and manage Kubernetes clusters. This configuration creates
 an RKE2 cluster running on SUSE Linux Micro instances, installs Rancher into
