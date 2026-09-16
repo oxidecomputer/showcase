@@ -1,0 +1,7 @@
+= Kubernetes
+
+Oxide maintains a number of Kubernetes integrations. See the
+link:https://docs.oxide.computer/guides/integrations/kubernetes[integration
+guide] for more information and our
+link:https://oxide.computer/blog/kubernetes-on-oxide[Kubernetes on Oxide] blog
+post.

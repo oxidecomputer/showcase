@@ -1,0 +1,7 @@
+= OpenTelemetry
+
+OpenTelemetry is an officially maintained Oxide integration. See the
+link:https://docs.oxide.computer/guides/integrations/opentelemetry[integration guide]
+for more information and
+link:https://github.com/oxidecomputer/opentelemetry-collector-components[GitHub]
+for source code.

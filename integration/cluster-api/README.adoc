@@ -1,0 +1,7 @@
+= Cluster API
+
+Cluster API is an officially maintained Oxide integration. See the
+link:https://docs.oxide.computer/guides/integrations/cluster-api[integration guide]
+for more information and
+link:https://github.com/oxidecomputer/cluster-api-provider-oxide[GitHub]
+for source code.

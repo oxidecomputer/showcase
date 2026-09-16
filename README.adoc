@@ -5,7 +5,15 @@ A showcase of applications, integrations, and other automation running on Oxide.
 == Integrations
 
 * link:integration/buildkite[Buildkite]
-* link:integration/rancher[Rancher]
+* link:integration/github-actions[GitHub Actions]
+* link:integration/kubernetes[Kubernetes]
+** link:integration/cloud-controller-manager[Cloud Controller Manager]
+** link:integration/cluster-api[Cluster API]
+** link:integration/omni[Omni]
+** link:integration/rancher[Rancher]
+* link:integration/opentelemetry[OpenTelemetry]
+* link:integration/packer[Packer]
+* link:integration/terraform[Terraform]
 
 == Applications
 

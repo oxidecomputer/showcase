@@ -1,0 +1,7 @@
+= Packer
+
+Packer is an officially maintained Oxide integration. See the
+link:https://docs.oxide.computer/guides/integrations/packer[integration guide]
+for more information and
+link:https://github.com/oxidecomputer/packer-plugin-oxide[GitHub]
+for source code.
