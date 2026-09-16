@@ -2,20 +2,55 @@
 
 A showcase of applications, integrations, and other automation running on Oxide.
 
+== Status Key
+
+[cols="1,2,5",options="header"]
+|===
+| Emoji | Status | Description
+
+| ✅
+| Official
+| Actively maintained and documented by Oxide.
+
+| 👀
+| Preview
+| Maintained by Oxide, but APIs or behavior may change.
+
+| 📖
+| Reference
+| Working example without a product support commitment.
+
+| 🧪
+| Experimental
+| Prototype or incomplete implementation.
+
+| ⚠️
+| Deprecated
+| Still available, but replacement or removal is planned.
+
+| 📦
+| Archived
+| No longer maintained.
+
+| 👥
+| Community
+| Maintained outside Oxide; use alongside a maturity status
+|===
+
 == Integrations
 
-* link:integration/buildkite[Buildkite]
-* link:integration/github-actions[GitHub Actions]
-* link:integration/kubernetes[Kubernetes]
-** link:integration/cloud-controller-manager[Cloud Controller Manager]
-** link:integration/cluster-api[Cluster API]
-** link:integration/omni[Omni]
-** link:integration/rancher[Rancher]
-* link:integration/opentelemetry[OpenTelemetry]
-* link:integration/packer[Packer]
-* link:integration/terraform[Terraform]
+* link:integration/buildkite[Buildkite] 🧪
+* link:integration/github-actions[GitHub Actions] 👀
+* link:integration/kubernetes[Kubernetes] ✅
+** link:integration/cloud-controller-manager[Cloud Controller Manager] ✅
+** link:integration/cluster-api[Cluster API] ✅
+** link:integration/omni[Omni] ✅
+** link:integration/rancher[Rancher] ✅
+* link:integration/opentelemetry[OpenTelemetry] ✅
+* link:integration/packer[Packer] ✅
+* link:integration/terraform[Terraform] ✅
 
 == Applications
 
-* link:./application/claude-code[Claude Code]
-* link:./application/minio[MinIO]
+* link:./application/claude-code[Claude Code] 🧪
+* link:./application/minio[MinIO] 📖
