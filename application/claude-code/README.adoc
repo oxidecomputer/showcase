@@ -13,7 +13,7 @@ run in their enterprise.
 [source,mermaid]
 ----
 flowchart LR
-    A["Anthropic self-hosted environment"]
+    A["Anthropic"]
     G["Git host"]
 
     subgraph Oxide
