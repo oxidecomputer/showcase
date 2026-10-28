@@ -12,8 +12,8 @@ Group=claude-self-hosted
 
 EnvironmentFile=/etc/claude-self-hosted/config.env
 
+# Reads the environment key from SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET.
 ExecStart=/usr/local/bin/claude self-hosted-runner orchestrator \
-  --environment-secret-file /etc/claude-self-hosted/environment-secret \
   --hooks-dir /etc/claude-self-hosted/hooks \
   --hook-concurrency 1 \
   --hook-timeout 60 \

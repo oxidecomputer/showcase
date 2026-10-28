@@ -1,0 +1,6 @@
+#!/bin/sh
+# Session-end breadcrumb. The orchestrator gets no session-ended event,
+# so this is the only in-guest record of why the session ended.
+logger -t claude-post-session \
+  "session=${CLAUDE_RUNNER_SESSION_ID:-none} reason=${CLAUDE_RUNNER_EXIT_REASON:-unknown}"
+exit 0

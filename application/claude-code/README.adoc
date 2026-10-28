@@ -29,9 +29,10 @@ flowchart LR
 ----
 
 Both the orchestrator and ephemeral Claude Code runners run as Oxide instances.
-The orchestrator runs systemd services to provision and reap runners. The
-runners install Claude Code using user-data and connect to the self-hosted
-environment using a work order.
+The orchestrator runs on a stock Debian instance whose user-data installs
+Claude Code and the Oxide CLI and starts systemd services to provision and reap
+runners. The runners boot from a runner image with Claude Code installed and
+connect to the self-hosted environment using a work order.
 
 The Claude self-hosted environment key and Oxide credentials never leave the
 orchestrator instance.
@@ -42,10 +43,10 @@ project, VPC, and subnet, though it's not required.
 == Requirements
 
 * A Team or Enterprise Claude plan and organization Owner access.
-* An Oxide project, VPC, subnet, and base Ubuntu 26.04 image.
+* An Oxide project, VPC, subnet, and base Debian 13 image.
 * Oxide API credentials.
-* `packer` to build the orchestrator image.
-* `oxide`, `jq`, and `base64` to launch the orchestrator instance.
+* `packer` to build the runner image.
+* `oxide` and `jq` to launch the orchestrator instance.
 
 == Usage
 
@@ -65,14 +66,15 @@ environment and listen for runner requests.
 
 === 2. Create Oxide resources
 
-. Create an Oxide project named `claude-self-hosted`.
+. Create an Oxide project, or choose an existing one. These steps use `my-project`.
 
-. Upload an Ubuntu 26.04 image to the project. This will be the base image for
-the orchestrator image and the image used to launch runners.
+. Make a Debian 13 image available as a silo image or in the project. This will
+be the base image for the runner image and the orchestrator instance.
 
-=== 3. Build the orchestrator image
+=== 3. Build the runner image
 
-. Export the Oxide credentials for Packer using one of these methods.
+. Export the Oxide credentials for Packer and the `oxide` CLI using one of these
+methods.
 +
 [source,shell]
 ----
@@ -85,96 +87,79 @@ export OXIDE_HOST=https://oxide.sys.example.com
 export OXIDE_TOKEN=oxide-token-abc123
 ----
 
-. Create the Packer variables for the build.
+. Build the runner image and record the image ID from the output.
 +
 [source,shell]
 ----
-cp ./orchestrator/packer/ubuntu.auto.pkrvars.hcl.example ./orchestrator/packer/ubuntu.auto.pkrvars.hcl
+packer init ./runner
+packer build \
+  -var project=my-project \
+  -var source_image_name=debian-13 \
+  -var ip_pool=my-ip-pool \
+  ./runner
 ----
 +
-.orchestrator/packer/ubuntu.auto.pkrvars.hcl
-[source,hcl]
-----
-project           = "claude-self-hosted"
-source_image_name = "ubuntu-26-04-20260720"
+Packer must be able to reach the build instance over SSH, so set `ip_pool` to
+an IP pool it can reach. Set `source_image_project` if the source image belongs
+to a project rather than the silo.
 
-source_image_project = "claude-self-hosted"
-
-# Packer must be able to reach the build instance over SSH.
-# ip_pool = "my-ip-pool"
-# vpc     = "default"
-# subnet  = "default"
-----
-
-. Build the orchestrator image and record the image ID from the output.
-+
-[source,shell]
-----
-packer init ./orchestrator/packer
-packer build ./orchestrator/packer
-----
+The runner image adds Claude Code, the `claude-self-hosted` user, and
+`claude-runner.service`, which runs a single session and then powers off the
+instance.
 
 === 4. Launch the orchestrator instance
 
-. Create the orchestrator user-data.
+. Create the orchestrator configuration, setting
+`SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET` to the environment key from step 1 and
+`IMAGE_ID` to the runner image ID from the Packer output.
 +
 [source,shell]
 ----
-cp ./orchestrator/packer/user-data.yaml.example ./orchestrator/packer/user-data.yaml
+cp ./orchestrator/config.env.example ./orchestrator/config.env
 ----
 +
-.orchestrator/packer/user-data.yaml
-[source,yaml]
+.orchestrator/config.env
+[source,shell]
 ----
-#cloud-config
-write_files:
-  # This configuration is used to launch the runner instances.
-  - path: /etc/claude-self-hosted/config.env
-    permissions: '0640'
-    owner: root:claude-self-hosted
-    content: |
-      OXIDE_HOST=https://oxide.sys.example.com
-      OXIDE_TOKEN=oxide-token-abc123
-      PROJECT=claude-self-hosted
-      IMAGE_ID=c499ce5e-4110-44d1-8ff9-62dfd3524180
-      VPC_NAME=default
-      SUBNET_NAME=default
-      NCPUS=2
-      MEMORY_GIB=8
-      DISK_GIB=32
-      SSH_KEY_ID=
-      IP_POOL=
-      MAX_RUNNERS=10
-      CLAUDE_VERSION=2.1.312
-      EXIT_IF_UNUSED_MIN=10
-      RELEASE_IDLE_MIN=30
-      KILL_SESSION_AFTER_MIN=480
-
-  - path: /etc/claude-self-hosted/environment-secret
-    permissions: '0640'
-    owner: root:claude-self-hosted
-    content: |
-      sk-ant-cc-abc123
-
-runcmd:
-  - [systemctl, daemon-reload]
-  - [systemctl, enable, --now, claude-self-hosted-orchestrator.service]
-  - [systemctl, enable, --now, claude-self-hosted-reaper.timer]
-  - [sh, -c, 'rm -f /var/lib/cloud/instances/*/user-data.txt* /var/lib/cloud/instances/*/cloud-config.txt']
+SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET=sk-ant-cc-abc123
+OXIDE_HOST=https://oxide.sys.example.com
+OXIDE_TOKEN=oxide-token-abc123
+PROJECT=my-project
+IMAGE_ID=ab9fb677-ef0c-400f-a737-a0bc9e2d601c
+VPC_NAME=default
+SUBNET_NAME=default
+NCPUS=2
+MEMORY_GIB=8
+DISK_GIB=32
+SSH_KEY_ID=
+IP_POOL=
+MAX_RUNNERS=10
+CLAUDE_VERSION=2.1.312
+EXIT_IF_UNUSED_MIN=10
+RELEASE_IDLE_MIN=30
+KILL_SESSION_AFTER_MIN=480
 ----
 
-. Launch the orchestrator using the image ID from the Packer output.
+. Launch the orchestrator on the Debian 13 image. It runs in the `PROJECT`,
+`VPC_NAME`, and `SUBNET_NAME` from `config.env`; the other settings there
+apply to runners.
 +
 [source,shell]
 ----
-export PROJECT=claude-self-hosted
+export IMAGE=debian-13
 
 # Optional: to connect to the orchestrator instance for debugging
 # export SSH_KEY_ID=
 # export IP_POOL=
 
-./orchestrator/packer/launch.sh ab9fb677-ef0c-400f-a737-a0bc9e2d601c ./orchestrator/packer/user-data.yaml
+./orchestrator/launch.sh ./orchestrator/config.env
 ----
++
+`launch.sh` builds cloud-init user-data from the files in `orchestrator/` and
+`runner/install-claude.sh`. On first boot, the instance installs Claude Code
+and the Oxide CLI, writes the configuration to
+`/etc/claude-self-hosted/config.env`, and starts the orchestrator service and
+reaper timer.
 
 === 5. Create a Claude Code session
 
@@ -186,8 +171,44 @@ export PROJECT=claude-self-hosted
 +
 [source,shell]
 ----
-watch -n5 'oxide instance list --project claude-self-hosted'
+watch -n5 'oxide instance list --project my-project'
 ----
 
 When the session ends, the runner instances powers off and the reaper deletes it
 and its boot disk.
+
+== Stop and Start the Orchestrator
+
+Stop the orchestrator instance to pause orchestration, and start it again
+later.
+
+[source,shell]
+----
+oxide instance stop --project my-project --instance claude-self-hosted-orchestrator
+oxide instance start --project my-project --instance claude-self-hosted-orchestrator
+----
+
+The orchestrator's disk keeps Claude Code, its configuration, and its enabled
+services, so orchestration resumes on boot without running the user-data again.
+
+While the orchestrator is stopped, new sessions do not get a runner. Runners
+that are already running finish their sessions and power off, and the reaper
+deletes them once the orchestrator is back.
+
+== Clean Up
+
+Delete the orchestrator and every runner instance and disk it left behind.
+
+[source,shell]
+----
+./orchestrator/cleanup.sh ./orchestrator/config.env
+----
+
+`cleanup.sh` deletes the orchestrator instance and disk first, so no new
+runners start, then deletes every instance and disk whose name starts with
+`claude-` in `PROJECT`. Set `DELETE_IMAGES=1` to also delete the runner images
+(`claude-self-hosted-runner-*`), and `NAME` if you launched the orchestrator
+with a different name.
+
+Then delete the self-hosted environment in Claude's
+link:https://claude.ai/admin-settings/cloud-environments[Cloud environments].

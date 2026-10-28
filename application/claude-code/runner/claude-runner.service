@@ -1,0 +1,34 @@
+[Unit]
+Description=Claude Code self-hosted runner (single session, then poweroff)
+After=network-online.target
+Wants=network-online.target
+
+SuccessAction=poweroff
+FailureAction=poweroff
+
+[Service]
+Type=simple
+Restart=no
+User=claude-self-hosted
+Group=claude-self-hosted
+StateDirectory=claude-self-hosted
+LogsDirectory=claude-self-hosted
+
+# Written by the spawn-runner hook's user-data.
+EnvironmentFile=-/run/claude/work-order.env
+ExecStart=/usr/local/bin/claude self-hosted-runner \
+  --capacity 1 \
+  --base-dir /var/lib/claude-self-hosted \
+  --hooks-dir /etc/claude-self-hosted/hooks \
+  --use-anthropic-git-proxy \
+  --configure-git \
+  --exit-if-unused-min ${EXIT_IF_UNUSED_MIN} \
+  --release-idle-session-min ${RELEASE_IDLE_MIN} \
+  --kill-session-after-min ${KILL_SESSION_AFTER_MIN} \
+  --log-file /var/log/claude-self-hosted/runner.log
+
+# Drop the work order once systemd has read it.
+ExecStartPost=-+/usr/bin/rm -f /run/claude/work-order.env
+
+TimeoutStopSec=180
+ExecStopPost=-+/usr/bin/systemctl --no-block poweroff

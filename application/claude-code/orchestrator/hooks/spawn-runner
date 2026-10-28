@@ -27,7 +27,6 @@ MEMORY_BYTES="$((MEMORY_GIB * 1024 * 1024 * 1024))"
 DISK_BYTES="$((DISK_GIB * 1024 * 1024 * 1024))"
 
 MAX_RUNNERS="${MAX_RUNNERS:-10}"
-: "${CLAUDE_VERSION:?spawn-runner: CLAUDE_VERSION unset}"
 
 RELEASE_IDLE_MIN="${RELEASE_IDLE_MIN:-30}"
 KILL_SESSION_AFTER_MIN="${KILL_SESSION_AFTER_MIN:-480}"
@@ -89,82 +88,20 @@ trap 'rm -rf "$TMPDIR_RUN"' EXIT INT TERM
 
 cat > "$TMPDIR_RUN/user-data" <<CLOUDCFG
 #cloud-config
-users:
-  - default
-  - name: claude-self-hosted
-    system: true
-    homedir: /var/lib/claude-self-hosted
-    shell: /usr/sbin/nologin
-    lock_passwd: true
-
-packages:
-  - ca-certificates
-  - curl
-  - git
-
+# The runner image provides Claude Code and claude-runner.service, which reads
+# this work order and powers off the instance when the session ends.
 write_files:
   - path: /run/claude/work-order.env
     permissions: '0600'
     owner: 'root:root'
     content: |
       SELF_HOSTED_RUNNER_ENVIRONMENT_SECRET=${WORK_ORDER}
-
-  - path: /etc/claude-self-hosted/hooks/post-session
-    permissions: '0755'
-    owner: 'root:root'
-    content: |
-      #!/bin/sh
-      # Session-end breadcrumb. The orchestrator gets no session-ended event,
-      # so this is the only in-guest record of why the session ended.
-      logger -t claude-post-session \\
-        "session=\${CLAUDE_RUNNER_SESSION_ID:-none} reason=\${CLAUDE_RUNNER_EXIT_REASON:-unknown}"
-      exit 0
-
-  - path: /etc/systemd/system/claude-runner.service
-    permissions: '0644'
-    owner: 'root:root'
-    content: |
-      [Unit]
-      Description=Claude Code self-hosted runner (single session, then poweroff)
-      After=network-online.target
-      Wants=network-online.target
-
-      SuccessAction=poweroff
-      FailureAction=poweroff
-
-      [Service]
-      Type=simple
-      Restart=no
-      User=claude-self-hosted
-      Group=claude-self-hosted
-      StateDirectory=claude-self-hosted
-      LogsDirectory=claude-self-hosted
-      EnvironmentFile=-/run/claude/work-order.env
-      ExecStart=/usr/local/bin/claude self-hosted-runner \\
-        --capacity 1 \\
-        --base-dir /var/lib/claude-self-hosted \\
-        --hooks-dir /etc/claude-self-hosted/hooks \\
-        --use-anthropic-git-proxy \\
-        --configure-git \\
-        --exit-if-unused-min ${EXIT_IF_UNUSED_MIN} \\
-        --release-idle-session-min ${RELEASE_IDLE_MIN} \\
-        --kill-session-after-min ${KILL_SESSION_AFTER_MIN} \\
-        --log-file /var/log/claude-self-hosted/runner.log
-
-      # Drop the work order once systemd has read it.
-      ExecStartPost=-+/usr/bin/rm -f /run/claude/work-order.env
-
-      TimeoutStopSec=180
-      ExecStopPost=-+/usr/bin/systemctl --no-block poweroff
-
-      [Install]
-      WantedBy=multi-user.target
+      EXIT_IF_UNUSED_MIN=${EXIT_IF_UNUSED_MIN}
+      RELEASE_IDLE_MIN=${RELEASE_IDLE_MIN}
+      KILL_SESSION_AFTER_MIN=${KILL_SESSION_AFTER_MIN}
 
 runcmd:
-  - [ sh, -c, "install -d -m 0755 /etc/claude-self-hosted/hooks" ]
-  - [ sh, -c, "curl -fsSL --retry 5 --retry-delay 2 https://downloads.claude.ai/claude-code-releases/${CLAUDE_VERSION}/linux-x64/claude -o /usr/local/bin/claude && chmod 0755 /usr/local/bin/claude" ]
   - [ sh, -c, "rm -f /var/lib/cloud/instances/*/user-data.txt* /var/lib/cloud/instances/*/cloud-config.txt || true" ]
-  - [ systemctl, daemon-reload ]
   - [ systemctl, start, --no-block, claude-runner.service ]
 CLOUDCFG
 
