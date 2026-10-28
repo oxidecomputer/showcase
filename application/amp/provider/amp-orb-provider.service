@@ -1,0 +1,27 @@
+[Unit]
+Description=Amp Orb Provider
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=amp-orb-provider
+Group=amp-orb-provider
+
+EnvironmentFile=/etc/amp-orb-provider/config.env
+
+ExecStart=/usr/local/bin/amp orb provider /usr/local/bin/amp-orb-dispatch
+
+# Amp updates itself in /var/lib/amp-orb-provider/.amp.
+StateDirectory=amp-orb-provider
+
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+NoNewPrivileges=true
+ReadOnlyPaths=/etc/amp-orb-provider
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,268 @@
+= Amp Self-hosted Orbs
+
+This showcase runs link:https://ampcode.com/docs/orbs/self-hosted[self-hosted
+Amp orbs] on Oxide and configures `amp orb provider` to launch one Oxide
+instance per Amp thread.
+
+This allows Oxide customers to control where and how their Amp agents run in
+their enterprise.
+
+== Architecture
+
+[source,mermaid]
+----
+flowchart LR
+    A["Amp"]
+    G["Git host"]
+
+    subgraph Oxide
+        P["Provider instance"]
+        O["Orb instance"]
+        D[("Orb disk")]
+    end
+
+    P <-->|Polls for jobs| A
+    P -->|Creates, pauses, deletes via Oxide API| O
+    O <-->|Runs tools for the thread| A
+    O <-->|clone, push| G
+    O --- D
+----
+
+Both the provider and the orbs run as Oxide instances. The provider runs on a
+stock Debian instance whose user-data installs Amp and the Oxide CLI and starts
+a systemd service, `amp orb provider`. The provider receives `spawn`, `pause`,
+and `delete` jobs from Amp and runs `dispatch.sh` for each one. On `spawn`,
+`dispatch.sh` creates an orb instance from the orb image with user-data that
+starts `amp orb bootstrap`, which connects the orb to its thread.
+
+The Amp orb provider token and Oxide credentials never leave the provider
+instance. Amp never connects into Oxide, and the provider never connects to the
+orbs.
+
+For simplicity, both the provider and orb instances run in the same Oxide
+project, though it's not required.
+
+=== Orb Lifecycle
+
+Oxide cannot save an instance's memory, and an instance's user-data is fixed
+when the instance is created, while Amp issues a new `ORB_TOKEN` on every
+`spawn`. So each orb's boot disk outlives its instance.
+
+[cols="1,1,4"]
+|===
+|Job |Sent by Amp when |What `dispatch.sh` does
+
+|`spawn`
+|A thread starts, or a paused thread gets a message
+|Deletes the orb instance if one exists, then creates it with the orb's
+existing disk, or a new disk from `ORB_IMAGE`. Its user-data starts
+`amp orb bootstrap` as `user` with the new token.
+
+|`pause`
+|The thread goes idle or is archived
+|Stops and deletes the orb instance. The disk stays.
+
+|`delete`
+|The thread is deleted
+|Deletes the orb instance and its disk.
+|===
+
+Files on disk survive a pause, including the repository checkout, installed
+dependencies, and build output, so a resumed orb runs `.agents/resume` rather
+than `.agents/setup`. Processes, portals, Terminal sessions, and `/tmp` do not.
+
+The instance and disk are both named after the orb ID, `amp-<uuid>`, so every
+job is safe to repeat and the provider keeps no local state.
+
+== Requirements
+
+* An Amp workspace with self-hosted orbs enabled.
+* An Oxide project and base Debian 13 image.
+* Oxide API credentials.
+* `packer` to build the orb image.
+* `oxide` and `jq` to launch the provider instance.
+
+== Usage
+
+=== 1. Create the Amp orb provider
+
+. In Amp, open **Settings → Orbs** for your workspace.
+
+.. Make sure **Self-Hosted Orbs** is on.
+
+.. Click **Add Orb Provider** and name it (e.g., `oxide`).
+
+.. Copy the provider token (e.g., `aop_live_abc123`). It is shown once.
+
+The provider uses this token to receive jobs from Amp.
+
+=== 2. Create Oxide resources
+
+. Create an Oxide project, or choose an existing one. These steps use `my-project`.
+
+. Make a Debian 13 image available as a silo image or in the project. This will
+be the base image for the orb image and the provider instance.
+
+=== 3. Build the orb image
+
+. Export the Oxide credentials for Packer and the `oxide` CLI using one of these
+methods.
++
+[source,shell]
+----
+export OXIDE_PROFILE=my-profile
+----
++
+[source,shell]
+----
+export OXIDE_HOST=https://oxide.sys.example.com
+export OXIDE_TOKEN=oxide-token-abc123
+----
+
+. Build the orb image and record the image name from the output (e.g.,
+`amp-orb-2026-10-28-120000`).
++
+[source,shell]
+----
+packer init ./orb
+packer build \
+  -var project=my-project \
+  -var source_image_name=debian-13 \
+  -var ip_pool=my-ip-pool \
+  ./orb
+----
++
+Packer must be able to reach the build instance over SSH, so set `ip_pool` to
+an IP pool it can reach. Set `source_image_project` if the source image belongs
+to a project rather than the silo.
+
+The orb image meets Amp's
+link:https://ampcode.com/docs/orbs/self-hosted#bring-your-own-image[image
+requirements], except Desktop support. It adds Git, Node.js, tmux, curl,
+ripgrep, `gh`, a `user` user with passwordless sudo, and the Amp CLI.
+
+=== 4. Launch the provider instance
+
+. Create the provider configuration, setting `AMP_ORB_PROVIDER_TOKEN` to the
+token from step 1 and `ORB_IMAGE` to the orb image name from step 3.
++
+[source,shell]
+----
+cp ./provider/config.env.example ./provider/config.env
+----
++
+.provider/config.env
+[source,shell]
+----
+AMP_ORB_PROVIDER_TOKEN=aop_live_abc123
+ORB_IMAGE=amp-orb-2026-10-28-120000
+OXIDE_HOST=https://oxide.sys.example.com
+OXIDE_TOKEN=oxide-token-abc123
+OXIDE_ORB_PROJECT=my-project
+OXIDE_ORB_IP_POOL=public
+OXIDE_ORB_NCPUS=4
+OXIDE_ORB_MEMORY_GIB=8
+OXIDE_ORB_DISK_GIB=20
+----
++
+`AMP_ORB_PROVIDER_TOKEN` is read by `amp orb provider`, and Amp passes
+`ORB_IMAGE` to every `spawn` job. The `OXIDE_ORB_` variables are read only by
+`dispatch.sh`. Each orb gets an ephemeral external IP from `OXIDE_ORB_IP_POOL`
+for outbound access to Amp and your Git host. The orb disk must be at least as
+large as the orb image.
+
+. Launch the provider on the Debian 13 image. It runs in `OXIDE_ORB_PROJECT`
+from `config.env`.
++
+[source,shell]
+----
+export IMAGE=debian-13
+
+# Optional: to connect to the provider instance for debugging
+# export SSH_KEY_ID=
+# export IP_POOL=
+
+./provider/launch.sh ./provider/config.env
+----
++
+`launch.sh` builds cloud-init user-data from the files in `provider/`. On first
+boot, the instance installs Amp and the Oxide CLI, writes the configuration to
+`/etc/amp-orb-provider`, and starts the provider service.
++
+Run exactly one provider per token. Two providers with the same token each
+claim a share of the jobs.
+
+=== 5. Create an Amp thread
+
+. In the Amp new thread composer, click **Orb**, open the type dropdown, and
+choose the provider from step 1 under **Self-Hosted**. Reload the page if the
+provider is missing.
+
+. Submit a prompt and wait for the orb instance to start.
++
+[source,shell]
+----
+watch -n5 'oxide instance list --project my-project'
+----
+
+When the thread goes idle or is archived, its orb instance is deleted and its
+disk is kept. When the thread is deleted, the disk is deleted too.
+
+== Stop and Start the Provider
+
+Stop the provider instance to pause the provider, and start it again later.
+
+[source,shell]
+----
+oxide instance stop --project my-project --instance amp-orb-provider
+oxide instance start --project my-project --instance amp-orb-provider
+----
+
+The provider's disk keeps Amp, its configuration, and its enabled service, so
+the provider resumes on boot without running the user-data again.
+
+While the provider is stopped, nothing starts, pauses, or deletes orbs. New
+threads and paused threads cannot get an orb, and orbs that go idle keep
+running until the provider is back.
+
+== Clean Up
+
+Delete the provider and every orb instance and disk it left behind.
+
+[source,shell]
+----
+./provider/cleanup.sh ./provider/config.env
+----
+
+`cleanup.sh` deletes the provider instance and disk first, so no new orbs
+start, then deletes every instance and disk whose name starts with `amp-` in
+`OXIDE_ORB_PROJECT`, including the disks of archived threads. Set
+`DELETE_IMAGES=1` to also delete the orb images (`amp-orb-*`), and `NAME` if
+you launched the provider with a different name.
+
+Then delete the provider in **Settings → Orbs**. Threads that used it can no
+longer resume their orbs.
+
+== Limitations
+
+* **No project snapshots.** `dispatch.sh` ignores `ORB_SNAPSHOT_ID`, so every
+new thread runs `.agents/setup`.
+* **Disks of archived threads stay.** Archiving only pauses an orb, so its disk
+remains until the thread is deleted.
+* **The orb token is in user-data.** Anyone who can view the instance in the
+project can read the short-lived `ORB_TOKEN`.
+* **A repeated `spawn` restarts the orb.** Recreating the instance is the only
+way to deliver a new token.
+* **No Desktop.** The orb image does not include `/opt/amp-wayland`.
+
+== Troubleshooting
+
+* **Orb stuck on setup:** check the provider log with
+`journalctl -u amp-orb-provider` on the provider instance, then the orb's
+serial console for the `amp-orb-bootstrap` unit.
++
+[source,shell]
+----
+script -qc 'oxide instance serial history --project my-project --instance <orb-id> --max-bytes 300000' /dev/null |
+  grep -a amp-orb-bootstrap
+----

@@ -52,5 +52,6 @@ A showcase of applications, integrations, and other automation running on Oxide.
 
 == Applications
 
+* link:./application/amp[Amp] 🧪
 * link:./application/claude-code[Claude Code] 🧪
 * link:./application/minio[MinIO] 📖
