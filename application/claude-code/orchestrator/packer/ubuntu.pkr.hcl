@@ -68,7 +68,7 @@ variable "ssh_username" {
 variable "claude_version" {
   description = "Claude Code version installed in the orchestrator image."
   type        = string
-  default     = "2.1.267"
+  default     = "2.1.312"
 }
 
 locals {
